@@ -1,0 +1,22 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/tapntrac/public_html/api.tapntrack.in
+
+    - echo "Installing Laravel dependencies..."
+    - composer install --no-dev --optimize-autoloader
+
+    - php artisan config:clear
+    - php artisan route:clear
+    - php artisan cache:clear
+
+    # Deploy only the public folder to the subdomain /api
+    - echo "Deploying Laravel public files..."
+    - mkdir -p $DEPLOYPATH
+    - /bin/cp -R public/* $DEPLOYPATH/
+
+    # Keep Laravel core secure (outside public_html)
+    - mkdir -p /home/tapntrac/laravel-tapntrack
+    - rsync -av --exclude=public --exclude=node_modules ./ /home/tapntrac/laravel-tapntrack/
+
+    - echo "Laravel deployment completed!"
