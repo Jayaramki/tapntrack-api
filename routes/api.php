@@ -15,18 +15,22 @@ use App\Http\Controllers\Api\AppSettingController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('api')->group(function () {
+Route::prefix('api/v1')->group(function () {
     Route::get('health', fn() => response()->json(['success' => true]));
 
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login']);
-        Route::middleware('auth:sanctum')->group(function () {
+        Route::get('security-question', [AuthController::class, 'getSecurityQuestion']);
+        Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
+
+        Route::middleware('auth:api')->group(function () {
             Route::post('logout', [AuthController::class, 'logout']);
             Route::get('me', [AuthController::class, 'me']);
+            Route::post('change-password', [AuthController::class, 'changePassword']);
         });
     });
 
-    Route::middleware(['auth:sanctum'])->group(function () {
+    Route::middleware(['auth:api'])->group(function () {
         Route::apiResource('users', UserController::class)->except(['create', 'edit']);
         Route::apiResource('customers', CustomerController::class)->except(['create', 'edit']);
         Route::apiResource('expense-categories', ExpenseCategoryController::class)->except(['create', 'edit']);
@@ -46,7 +50,7 @@ Route::prefix('api')->group(function () {
         Route::put('settings', [AppSettingController::class, 'update']);
     });
 
-    Route::middleware(['auth:sanctum', 'role:super_admin'])->group(function () {
+    Route::middleware(['auth:api', 'role:super_admin'])->group(function () {
         Route::apiResource('books', BookController::class)->only(['index', 'store', 'update']);
     });
 });

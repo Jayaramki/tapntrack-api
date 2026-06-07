@@ -26,7 +26,17 @@ class UserFactory extends Factory
     {
         return [
             'name' => fake()->name(),
+            'first_name' => fake()->firstName(),
+            'last_name' => fake()->lastName(),
+            'username' => fake()->unique()->userName(),
             'email' => fake()->unique()->safeEmail(),
+            'phone' => fake()->optional()->phoneNumber(),
+            'role' => 'field_agent',
+            'book_id' => null,
+            'is_active' => true,
+            'permissions' => [],
+            'security_question' => 'What is your favorite color?',
+            'security_answer' => 'blue',
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
