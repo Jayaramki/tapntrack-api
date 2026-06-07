@@ -1,22 +1,73 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/tapntrac/public_html/api.tapntrack.in
+    - export DEPLOYPATH=/home/tapntrac/public_html/api.tapntrack.in/
+    - LOGFILE=$DEPLOYPATH/deployment.log
+    - echo "========================================" >> $LOGFILE
+    - echo "Deployment started at $(date)" >> $LOGFILE
+    - echo "Deploying to $DEPLOYPATH" >> $LOGFILE
 
-    - echo "Installing Laravel dependencies..."
-    - composer install --no-dev --optimize-autoloader
+    # Delete existing files except specified ones
+    - echo "Cleaning deployment directory..." >> $LOGFILE
+    - find $DEPLOYPATH -mindepth 1 -maxdepth 1 ! -name '.env' ! -name 'tenants_data' ! -name 'storage' ! -name 'vendor' ! -name 'deployment.log' -exec rm -rf {} \; >> $LOGFILE 2>&1
 
-    - php artisan config:clear
-    - php artisan route:clear
-    - php artisan cache:clear
+    # Copy application directories
+    - echo "Copying application files..." >> $LOGFILE
+    - /bin/cp -R app $DEPLOYPATH >> $LOGFILE 2>&1
+    - /bin/cp -R bootstrap $DEPLOYPATH >> $LOGFILE 2>&1
+    - /bin/cp -R config $DEPLOYPATH >> $LOGFILE 2>&1
+    - /bin/cp -R database $DEPLOYPATH >> $LOGFILE 2>&1
+    - /bin/cp -R public $DEPLOYPATH >> $LOGFILE 2>&1
+    - /bin/cp -R resources $DEPLOYPATH >> $LOGFILE 2>&1
+    - /bin/cp -R routes $DEPLOYPATH >> $LOGFILE 2>&1
+    - /bin/cp -R tests $DEPLOYPATH >> $LOGFILE 2>&1
 
-    # Deploy only the public folder to the subdomain /api
-    - echo "Deploying Laravel public files..."
-    - mkdir -p $DEPLOYPATH
-    - /bin/cp -R public/* $DEPLOYPATH/
+    # Copy root files
+    - /bin/cp artisan $DEPLOYPATH >> $LOGFILE 2>&1
+    - /bin/cp composer.json $DEPLOYPATH >> $LOGFILE 2>&1
+    - /bin/cp composer.lock $DEPLOYPATH >> $LOGFILE 2>&1
+    - /bin/cp package.json $DEPLOYPATH >> $LOGFILE 2>&1
 
-    # Keep Laravel core secure (outside public_html)
-    - mkdir -p /home/tapntrac/laravel-tapntrack
-    - rsync -av --exclude=public --exclude=node_modules ./ /home/tapntrac/laravel-tapntrack/
+    # Copy .htaccess if exists
+    - if [ -f .htaccess ]; then /bin/cp .htaccess $DEPLOYPATH >> $LOGFILE 2>&1; fi
 
-    - echo "Laravel deployment completed!"
+    - echo "Files copied successfully." >> $LOGFILE
+
+    # Move into deployment directory
+    - cd $DEPLOYPATH
+
+    # Ensure bootstrap cache exists
+    - mkdir -p bootstrap/cache >> $LOGFILE 2>&1
+
+    # Install Composer if not available
+    - if [ ! -f composer.phar ]; then echo "Installing Composer..." >> $LOGFILE; curl -sS https://getcomposer.org/installer | php >> $LOGFILE 2>&1; fi
+
+    # Install dependencies
+    - echo "Running composer install..." >> $LOGFILE
+    - php composer.phar install --no-dev --optimize-autoloader >> $LOGFILE 2>&1
+
+    # Refresh autoload
+    - echo "Refreshing autoload..." >> $LOGFILE
+    - php composer.phar dump-autoload --optimize >> $LOGFILE 2>&1
+
+    # Clear old caches
+    - echo "Clearing Laravel caches..." >> $LOGFILE
+    - php artisan optimize:clear >> $LOGFILE 2>&1
+
+    # Run database migrations
+    - echo "Running migrations..." >> $LOGFILE
+    - php artisan migrate --force >> $LOGFILE 2>&1
+
+    # Cache for production
+    - echo "Building Laravel caches..." >> $LOGFILE
+    - php artisan config:cache >> $LOGFILE 2>&1
+    - php artisan route:cache >> $LOGFILE 2>&1
+    - php artisan view:cache >> $LOGFILE 2>&1
+
+    # Set permissions
+    - echo "Setting permissions..." >> $LOGFILE
+    - chmod -R 755 storage >> $LOGFILE 2>&1
+    - chmod -R 755 bootstrap/cache >> $LOGFILE 2>&1
+
+    - echo "Deployment completed successfully at $(date)" >> $LOGFILE
+    - echo "========================================" >> $LOGFILE
