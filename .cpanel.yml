@@ -1,24 +1,35 @@
 ---
 deployment:
   tasks:
-    # Install PHP dependencies (skips dev packages, optimizes autoloader)
-    # If 'composer' is not in PATH on your host, replace with: php composer.phar install ...
-    - composer install --no-dev --optimize-autoloader --no-interaction
+    # ── Composer ─────────────────────────────────────────────────────────────
+    # Download composer.phar once; reused on every subsequent deploy
+    - test -f composer.phar || curl -sS https://getcomposer.org/installer | php
+    - php composer.phar install --no-dev --optimize-autoloader --no-interaction
 
-    # Ensure writable directories exist (safe to re-run)
+    # ── Environment ──────────────────────────────────────────────────────────
+    # Create .env from example on first deploy (already has DB credentials)
+    - test -f .env || cp .env.example .env
+    # Force production settings regardless of what .env.example says
+    - sed -i 's/^APP_ENV=.*/APP_ENV=production/' .env
+    - sed -i 's/^APP_DEBUG=.*/APP_DEBUG=false/' .env
+    # Generate APP_KEY only when not already set — skipped on every subsequent deploy
+    - grep -q "^APP_KEY=base64:" .env || php artisan key:generate
+
+    # ── Storage directories ───────────────────────────────────────────────────
+    # Laravel requires these subdirs; safe to re-run
     - mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache storage/logs bootstrap/cache
+    - chmod -R 755 storage bootstrap/cache
 
-    # Clear stale caches before migrating (avoids cached old config blocking migration)
+    # ── Caches ───────────────────────────────────────────────────────────────
+    # Clear any stale cached config/routes before migration runs
     - php artisan optimize:clear
 
-    # Run any pending migrations
+    # ── Database ─────────────────────────────────────────────────────────────
     - php artisan migrate --force
+    # Seed only on first deploy — sentinel file prevents re-seeding on future deploys
+    - test -f storage/.seeded || (php artisan db:seed --force && touch storage/.seeded)
 
-    # Build production caches
+    # ── Production caches ────────────────────────────────────────────────────
     - php artisan config:cache
     - php artisan route:cache
     - php artisan view:cache
-
-    # Ensure storage and cache dirs are writable by the web server
-    - chmod -R 755 storage
-    - chmod -R 755 bootstrap/cache
