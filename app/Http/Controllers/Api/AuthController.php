@@ -117,8 +117,31 @@ class AuthController extends ApiController
             'role' => $user->role,
             'phone' => $user->phone,
             'is_active' => $user->is_active,
-            'permissions' => $user->permissions ?? [],
+            'permissions' => $user->permissions ?: $this->permissionsForRole($user->role),
             'token' => $includeToken ? $user->api_token : ($user->api_token ?? null),
         ];
+    }
+
+    /**
+     * Map a role to its permission list. Mirrors the strings the Angular
+     * route guards and menu check against. Used when a user has no explicit
+     * permissions stored on their record.
+     */
+    private function permissionsForRole(?string $role): array
+    {
+        $all = [
+            'manage-books', 'manage-users', 'manage-customers', 'view-loans',
+            'create-loans', 'edit-loans', 'delete-loans', 'archive-loans',
+            'record-collection', 'view-pending-loans', 'view-day-summary',
+            'view-ledger', 'manage-expenses', 'view-reports', 'manage-settings',
+            'view-dashboard',
+        ];
+
+        return match ($role) {
+            'super_admin' => $all,
+            'book_admin' => array_values(array_diff($all, ['manage-books'])),
+            'field_agent' => ['view-loans', 'record-collection', 'view-pending-loans'],
+            default => [],
+        };
     }
 }
