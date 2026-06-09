@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -11,20 +14,32 @@ jobs:
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup PHP 8.2
+      - name: Setup PHP 8.3
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.3'
           tools: composer:v2
 
-      - name: Install Composer dependencies
-        run: composer install --no-dev --optimize-autoloader --no-interaction
+      - name: Update Composer dependencies and fix lock file
+        run: composer update --no-dev --optimize-autoloader --no-interaction
 
-      - name: Push to deploy branch (with vendor included)
+      - name: Commit updated composer.lock back to main if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet composer.lock; then
+            echo "composer.lock unchanged"
+          else
+            git add composer.lock
+            git commit -m "chore: sync composer.lock [skip ci]"
+            git push origin main
+          fi
+
+      - name: Push deploy branch with vendor included
+        run: |
           git checkout -B deploy
           git add -f vendor/
           git commit -m "build: include vendor for deployment [skip ci]"
