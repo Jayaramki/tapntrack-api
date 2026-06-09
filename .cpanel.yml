@@ -27,6 +27,13 @@ deployment:
     - echo "[2] Copying application files" >> $LOGFILE
     - /bin/cp -R app bootstrap config database public resources routes artisan composer.json composer.lock .env.example $DEPLOYPATH >> $LOGFILE 2>&1
 
+    # [2b] Forward all requests from the parent (the subdomain's DEFAULT document
+    # root) into public/. This means the document root can stay at the parent
+    # folder — which is never deleted by the deploy — so redeploys can't break
+    # routing. Recreated each deploy (the clean step above removes it).
+    - echo "[2b] Writing parent .htaccess forwarder" >> $LOGFILE
+    - printf '<IfModule mod_rewrite.c>\nRewriteEngine On\nRewriteRule ^(.*)$ public/$1 [L]\n</IfModule>\n' > $DEPLOYPATH/.htaccess
+
     # [3] Copy committed vendor only on first deploy (server never runs composer)
     - if [ ! -f $DEPLOYPATH/vendor/autoload.php ]; then echo "[3] Copying vendor (first deploy)" >> $LOGFILE; /bin/cp -R vendor $DEPLOYPATH >> $LOGFILE 2>&1; else echo "[3] vendor already present, skipping" >> $LOGFILE; fi
 
