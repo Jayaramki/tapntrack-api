@@ -9,9 +9,16 @@ deployment:
     # ── Environment ──────────────────────────────────────────────────────────
     # Create .env from example on first deploy (already has DB credentials)
     - test -f .env || cp .env.example .env
-    # Force production settings regardless of what .env.example says
+    # Force known-good values on every deploy (user cannot edit .env via terminal,
+    # so the deploy is the only place to correct a stale/wrong .env)
     - sed -i 's/^APP_ENV=.*/APP_ENV=production/' .env
     - sed -i 's/^APP_DEBUG=.*/APP_DEBUG=false/' .env
+    # DB on cPanel is localhost — a wrong host makes migrate hang on a connect timeout
+    - sed -i 's/^DB_HOST=.*/DB_HOST=localhost/' .env
+    # File/sync drivers have no DB dependency — avoids chicken-and-egg before migrate
+    - sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=file/' .env
+    - sed -i 's/^CACHE_STORE=.*/CACHE_STORE=file/' .env
+    - sed -i 's/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/' .env
     # Generate APP_KEY only when not already set — skipped on every subsequent deploy
     - grep -q "^APP_KEY=base64:" .env || php artisan key:generate
 
