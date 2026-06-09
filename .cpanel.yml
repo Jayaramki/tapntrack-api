@@ -1,12 +1,10 @@
 ---
 deployment:
   tasks:
-    # ── Composer ─────────────────────────────────────────────────────────────
-    # Download composer.phar once, reused on every subsequent deploy
-    - test -f composer.phar || curl -sS https://getcomposer.org/installer | php
-    # composer update: resolves dependencies fresh (no lock file required)
-    # COMPOSER_MEMORY_LIMIT=-1 removes PHP memory cap for the install process
-    - COMPOSER_MEMORY_LIMIT=-1 php composer.phar update --no-dev --optimize-autoloader --no-interaction --no-scripts
+    # ── Dependencies ─────────────────────────────────────────────────────────
+    # vendor/ is committed to the repo (built locally with Docker/composer).
+    # The server NEVER runs composer — this is what avoids the deploy hang on
+    # shared hosting. To update packages: rebuild vendor locally, commit, push.
 
     # ── Environment ──────────────────────────────────────────────────────────
     # Create .env from example on first deploy (already has DB credentials)

@@ -20,7 +20,7 @@
 /public/storage
 /storage/*.key
 /storage/pail
-/vendor
+# vendor is committed so shared hosting never needs to run composer
 _ide_helper.php
 Homestead.json
 Homestead.yaml
