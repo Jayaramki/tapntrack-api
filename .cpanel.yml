@@ -2,8 +2,11 @@
 deployment:
   tasks:
     # ── Composer ─────────────────────────────────────────────────────────────
-    # vendor/ is pre-built by GitHub Actions and committed to the deploy branch.
-    # composer install is skipped — nothing to download on the server.
+    # Download composer.phar once, reused on every subsequent deploy
+    - test -f composer.phar || curl -sS https://getcomposer.org/installer | php
+    # composer update: resolves dependencies fresh (no lock file required)
+    # COMPOSER_MEMORY_LIMIT=-1 removes PHP memory cap for the install process
+    - COMPOSER_MEMORY_LIMIT=-1 php composer.phar update --no-dev --optimize-autoloader --no-interaction --no-scripts
 
     # ── Environment ──────────────────────────────────────────────────────────
     # Create .env from example on first deploy (already has DB credentials)
