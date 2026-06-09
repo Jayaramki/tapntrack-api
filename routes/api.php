@@ -32,7 +32,12 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware(['auth:api'])->group(function () {
         Route::apiResource('users', UserController::class)->except(['create', 'edit']);
-        Route::apiResource('customers', CustomerController::class)->except(['create', 'edit']);
+
+        Route::get('customers', [CustomerController::class, 'index']);
+        Route::post('customers', [CustomerController::class, 'store']);
+        Route::get('customers/{id}', [CustomerController::class, 'show']);
+        Route::put('customers/{id}', [CustomerController::class, 'update']);
+        Route::patch('customers/{id}/toggle-status', [CustomerController::class, 'toggleStatus']);
         Route::apiResource('expense-categories', ExpenseCategoryController::class)->except(['create', 'edit']);
         Route::apiResource('expenses', ExpenseController::class)->except(['create', 'edit']);
         Route::apiResource('loans', LoanController::class)->except(['create', 'edit']);
