@@ -1,42 +1,55 @@
 ---
 deployment:
   tasks:
-    # ── Dependencies ─────────────────────────────────────────────────────────
-    # vendor/ is committed to the repo (built locally with Docker/composer).
-    # The server NEVER runs composer — this is what avoids the deploy hang on
-    # shared hosting. To update packages: rebuild vendor locally, commit, push.
+    # ─────────────────────────────────────────────────────────────────────────
+    # Option B: copy the app into the subdomain folder, run it from there.
+    #
+    #   Deploy target : /home/tapntrac/public_html/api.tapntrack.in
+    #   Document root : /home/tapntrac/public_html/api.tapntrack.in/public
+    #                   (set this in cPanel → Subdomains)
+    #
+    # IMPORTANT: each task line below runs in its OWN shell, so shell variables
+    # (export VAR=...) do NOT persist between lines. Every path is hardcoded and
+    # artisan commands are chained with `cd <path> && ...` on a single line.
+    #
+    # vendor/ is committed to the repo, so the server NEVER runs composer.
+    # Copies are local (same disk) via rsync — fast, incremental, no hang.
+    # ─────────────────────────────────────────────────────────────────────────
 
-    # ── Environment ──────────────────────────────────────────────────────────
-    # Create .env from example on first deploy (already has DB credentials)
-    - test -f .env || cp .env.example .env
-    # Force known-good values on every deploy (user cannot edit .env via terminal,
-    # so the deploy is the only place to correct a stale/wrong .env)
-    - sed -i 's/^APP_ENV=.*/APP_ENV=production/' .env
-    - sed -i 's/^APP_DEBUG=.*/APP_DEBUG=false/' .env
-    # DB on cPanel is localhost — a wrong host makes migrate hang on a connect timeout
-    - sed -i 's/^DB_HOST=.*/DB_HOST=localhost/' .env
-    # File/sync drivers have no DB dependency — avoids chicken-and-egg before migrate
-    - sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=file/' .env
-    - sed -i 's/^CACHE_STORE=.*/CACHE_STORE=file/' .env
-    - sed -i 's/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/' .env
-    # Generate APP_KEY only when not already set — skipped on every subsequent deploy
-    - grep -q "^APP_KEY=base64:" .env || php artisan key:generate
+    # ── Create target ────────────────────────────────────────────────────────
+    - mkdir -p /home/tapntrac/public_html/api.tapntrack.in
 
-    # ── Storage directories ───────────────────────────────────────────────────
-    # Laravel requires these subdirs; safe to re-run
-    - mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache storage/logs bootstrap/cache
-    - chmod -R 755 storage bootstrap/cache
+    # ── Sync application code (incremental; --delete prunes removed files) ────
+    # storage/ and .env are intentionally NOT synced so runtime data survives.
+    - rsync -a --delete app /home/tapntrac/public_html/api.tapntrack.in/
+    - rsync -a --delete bootstrap /home/tapntrac/public_html/api.tapntrack.in/
+    - rsync -a --delete config /home/tapntrac/public_html/api.tapntrack.in/
+    - rsync -a --delete database /home/tapntrac/public_html/api.tapntrack.in/
+    - rsync -a --delete resources /home/tapntrac/public_html/api.tapntrack.in/
+    - rsync -a --delete routes /home/tapntrac/public_html/api.tapntrack.in/
+    - rsync -a --delete public /home/tapntrac/public_html/api.tapntrack.in/
+    - rsync -a --delete vendor /home/tapntrac/public_html/api.tapntrack.in/
+    - rsync -a artisan composer.json composer.lock /home/tapntrac/public_html/api.tapntrack.in/
 
-    # ── Caches ───────────────────────────────────────────────────────────────
-    # Clear any stale cached config/routes before migration runs
-    - php artisan optimize:clear
+    # ── Storage: create once, then never overwrite (keeps logs + .seeded) ─────
+    - test -d /home/tapntrac/public_html/api.tapntrack.in/storage || cp -R storage /home/tapntrac/public_html/api.tapntrack.in/
 
-    # ── Database ─────────────────────────────────────────────────────────────
-    - php artisan migrate --force
-    # Seed only on first deploy — sentinel file prevents re-seeding on future deploys
-    - test -f storage/.seeded || (php artisan db:seed --force && touch storage/.seeded)
+    # ── Environment file: create once from example, then preserve ─────────────
+    - test -f /home/tapntrac/public_html/api.tapntrack.in/.env || cp .env.example /home/tapntrac/public_html/api.tapntrack.in/.env
 
-    # ── Production caches ────────────────────────────────────────────────────
-    - php artisan config:cache
-    - php artisan route:cache
-    - php artisan view:cache
+    # ── Enforce known-good env values on every deploy (no terminal to edit) ───
+    - cd /home/tapntrac/public_html/api.tapntrack.in && sed -i 's/^APP_ENV=.*/APP_ENV=production/' .env && sed -i 's/^APP_DEBUG=.*/APP_DEBUG=false/' .env && sed -i 's/^DB_HOST=.*/DB_HOST=localhost/' .env && sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=file/' .env && sed -i 's/^CACHE_STORE=.*/CACHE_STORE=file/' .env && sed -i 's/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/' .env
+
+    # ── App key: generate only if not already set ─────────────────────────────
+    - cd /home/tapntrac/public_html/api.tapntrack.in && (grep -q "^APP_KEY=base64:" .env || php artisan key:generate)
+
+    # ── Writable dirs + permissions ───────────────────────────────────────────
+    - cd /home/tapntrac/public_html/api.tapntrack.in && mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache storage/logs bootstrap/cache && chmod -R 755 storage bootstrap/cache
+
+    # ── Clear stale caches, migrate, seed once ────────────────────────────────
+    - cd /home/tapntrac/public_html/api.tapntrack.in && php artisan optimize:clear
+    - cd /home/tapntrac/public_html/api.tapntrack.in && php artisan migrate --force
+    - cd /home/tapntrac/public_html/api.tapntrack.in && (test -f storage/.seeded || (php artisan db:seed --force && touch storage/.seeded))
+
+    # ── Build production caches ───────────────────────────────────────────────
+    - cd /home/tapntrac/public_html/api.tapntrack.in && php artisan config:cache && php artisan route:cache && php artisan view:cache
