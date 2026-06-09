@@ -1,22 +1,24 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/tapntrac/public_html/api.tapntrack.in
+    # Install PHP dependencies (skips dev packages, optimizes autoloader)
+    # If 'composer' is not in PATH on your host, replace with: php composer.phar install ...
+    - composer install --no-dev --optimize-autoloader --no-interaction
 
-    - echo "Installing Laravel dependencies..."
-    - composer install --no-dev --optimize-autoloader
+    # Ensure writable directories exist (safe to re-run)
+    - mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache storage/logs bootstrap/cache
 
-    - php artisan config:clear
-    - php artisan route:clear
-    - php artisan cache:clear
+    # Clear stale caches before migrating (avoids cached old config blocking migration)
+    - php artisan optimize:clear
 
-    # Deploy only the public folder to the subdomain /api
-    - echo "Deploying Laravel public files..."
-    - mkdir -p $DEPLOYPATH
-    - /bin/cp -R public/* $DEPLOYPATH/
+    # Run any pending migrations
+    - php artisan migrate --force
 
-    # Keep Laravel core secure (outside public_html)
-    - mkdir -p /home/tapntrac/laravel-tapntrack
-    - rsync -av --exclude=public --exclude=node_modules ./ /home/tapntrac/laravel-tapntrack/
+    # Build production caches
+    - php artisan config:cache
+    - php artisan route:cache
+    - php artisan view:cache
 
-    - echo "Laravel deployment completed!"
+    # Ensure storage and cache dirs are writable by the web server
+    - chmod -R 755 storage
+    - chmod -R 755 bootstrap/cache
