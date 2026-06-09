@@ -2,54 +2,76 @@
 deployment:
   tasks:
     # ─────────────────────────────────────────────────────────────────────────
-    # Option B: copy the app into the subdomain folder, run it from there.
+    # Mirrors the proven working pattern from the other app on this host:
+    # copy files into the subdomain folder, then run artisan. Everything is
+    # logged to $DEPLOYPATH/deployment.log so we can SEE exactly what happens.
     #
     #   Deploy target : /home/tapntrac/public_html/api.tapntrack.in
     #   Document root : /home/tapntrac/public_html/api.tapntrack.in/public
     #                   (set this in cPanel → Subdomains)
     #
-    # IMPORTANT: each task line below runs in its OWN shell, so shell variables
-    # (export VAR=...) do NOT persist between lines. Every path is hardcoded and
-    # artisan commands are chained with `cd <path> && ...` on a single line.
-    #
-    # vendor/ is committed to the repo, so the server NEVER runs composer.
-    # Copies are local (same disk) via rsync — fast, incremental, no hang.
+    # Difference from the other app: we do NOT run composer here. vendor/ is
+    # committed to the repo and copied once — this avoids the step that hung.
     # ─────────────────────────────────────────────────────────────────────────
 
-    # ── Create target ────────────────────────────────────────────────────────
-    - mkdir -p /home/tapntrac/public_html/api.tapntrack.in
+    - export DEPLOYPATH=/home/tapntrac/public_html/api.tapntrack.in
+    - export LOGFILE=$DEPLOYPATH/deployment.log
+    - mkdir -p $DEPLOYPATH
+    - echo "================ Deploy started $(date) ================" >> $LOGFILE
 
-    # ── Sync application code (incremental; --delete prunes removed files) ────
-    # storage/ and .env are intentionally NOT synced so runtime data survives.
-    - rsync -a --delete app /home/tapntrac/public_html/api.tapntrack.in/
-    - rsync -a --delete bootstrap /home/tapntrac/public_html/api.tapntrack.in/
-    - rsync -a --delete config /home/tapntrac/public_html/api.tapntrack.in/
-    - rsync -a --delete database /home/tapntrac/public_html/api.tapntrack.in/
-    - rsync -a --delete resources /home/tapntrac/public_html/api.tapntrack.in/
-    - rsync -a --delete routes /home/tapntrac/public_html/api.tapntrack.in/
-    - rsync -a --delete public /home/tapntrac/public_html/api.tapntrack.in/
-    - rsync -a --delete vendor /home/tapntrac/public_html/api.tapntrack.in/
-    - rsync -a artisan composer.json composer.lock /home/tapntrac/public_html/api.tapntrack.in/
+    # [1] Remove old app files; preserve .env, storage, vendor, and the log
+    - echo "[1] Cleaning deploy dir (keep .env, storage, vendor)" >> $LOGFILE
+    - find $DEPLOYPATH -mindepth 1 -maxdepth 1 ! -name '.env' ! -name 'storage' ! -name 'vendor' ! -name 'deployment.log' -exec rm -rf {} \; >> $LOGFILE 2>&1
 
-    # ── Storage: create once, then never overwrite (keeps logs + .seeded) ─────
-    - test -d /home/tapntrac/public_html/api.tapntrack.in/storage || cp -R storage /home/tapntrac/public_html/api.tapntrack.in/
+    # [2] Copy application code from the git clone (current working dir)
+    - echo "[2] Copying application files" >> $LOGFILE
+    - /bin/cp -R app bootstrap config database public resources routes artisan composer.json composer.lock .env.example $DEPLOYPATH >> $LOGFILE 2>&1
 
-    # ── Environment file: create once from example, then preserve ─────────────
-    - test -f /home/tapntrac/public_html/api.tapntrack.in/.env || cp .env.example /home/tapntrac/public_html/api.tapntrack.in/.env
+    # [3] Copy committed vendor only on first deploy (server never runs composer)
+    - if [ ! -f $DEPLOYPATH/vendor/autoload.php ]; then echo "[3] Copying vendor (first deploy)" >> $LOGFILE; /bin/cp -R vendor $DEPLOYPATH >> $LOGFILE 2>&1; else echo "[3] vendor already present, skipping" >> $LOGFILE; fi
 
-    # ── Enforce known-good env values on every deploy (no terminal to edit) ───
-    - cd /home/tapntrac/public_html/api.tapntrack.in && sed -i 's/^APP_ENV=.*/APP_ENV=production/' .env && sed -i 's/^APP_DEBUG=.*/APP_DEBUG=false/' .env && sed -i 's/^DB_HOST=.*/DB_HOST=localhost/' .env && sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=file/' .env && sed -i 's/^CACHE_STORE=.*/CACHE_STORE=file/' .env && sed -i 's/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/' .env
+    # [4] Copy storage skeleton only if missing (preserve logs/cache across deploys)
+    - if [ ! -d $DEPLOYPATH/storage/framework ]; then echo "[4] Copying storage (first deploy)" >> $LOGFILE; /bin/cp -R storage $DEPLOYPATH >> $LOGFILE 2>&1; else echo "[4] storage already present, skipping" >> $LOGFILE; fi
 
-    # ── App key: generate only if not already set ─────────────────────────────
-    - cd /home/tapntrac/public_html/api.tapntrack.in && (grep -q "^APP_KEY=base64:" .env || php artisan key:generate)
+    - cd $DEPLOYPATH
 
-    # ── Writable dirs + permissions ───────────────────────────────────────────
-    - cd /home/tapntrac/public_html/api.tapntrack.in && mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache storage/logs bootstrap/cache && chmod -R 755 storage bootstrap/cache
+    # [5] .env: create from example on first deploy, then preserve
+    - if [ ! -f .env ]; then echo "[5] Creating .env from example" >> $LOGFILE; cp .env.example .env >> $LOGFILE 2>&1; else echo "[5] .env already present, keeping" >> $LOGFILE; fi
 
-    # ── Clear stale caches, migrate, seed once ────────────────────────────────
-    - cd /home/tapntrac/public_html/api.tapntrack.in && php artisan optimize:clear
-    - cd /home/tapntrac/public_html/api.tapntrack.in && php artisan migrate --force
-    - cd /home/tapntrac/public_html/api.tapntrack.in && (test -f storage/.seeded || (php artisan db:seed --force && touch storage/.seeded))
+    # [6] Enforce safe values on every deploy (no terminal to edit .env by hand)
+    - echo "[6] Enforcing env values" >> $LOGFILE
+    - sed -i 's/^APP_ENV=.*/APP_ENV=production/' .env
+    - sed -i 's/^APP_DEBUG=.*/APP_DEBUG=false/' .env
+    - sed -i 's/^DB_HOST=.*/DB_HOST=localhost/' .env
+    - sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=file/' .env
+    - sed -i 's/^CACHE_STORE=.*/CACHE_STORE=file/' .env
+    - sed -i 's/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/' .env
 
-    # ── Build production caches ───────────────────────────────────────────────
-    - cd /home/tapntrac/public_html/api.tapntrack.in && php artisan config:cache && php artisan route:cache && php artisan view:cache
+    # [7] Generate APP_KEY only if not already set
+    - echo "[7] App key" >> $LOGFILE
+    - grep -q "^APP_KEY=base64:" .env || php artisan key:generate >> $LOGFILE 2>&1
+
+    # [8] Writable dirs + permissions
+    - echo "[8] Permissions" >> $LOGFILE
+    - mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache storage/logs bootstrap/cache >> $LOGFILE 2>&1
+    - chmod -R 755 storage bootstrap/cache >> $LOGFILE 2>&1
+
+    # [9] Clear stale caches
+    - echo "[9] Clearing caches" >> $LOGFILE
+    - php artisan optimize:clear >> $LOGFILE 2>&1
+
+    # [10] Migrate (idempotent — only applies pending migrations)
+    - echo "[10] Running migrations" >> $LOGFILE
+    - php artisan migrate --force >> $LOGFILE 2>&1
+
+    # [11] Seed (idempotent — seeder uses updateOrCreate)
+    - echo "[11] Seeding users" >> $LOGFILE
+    - php artisan db:seed --force >> $LOGFILE 2>&1
+
+    # [12] Build production caches
+    - echo "[12] Building caches" >> $LOGFILE
+    - php artisan config:cache >> $LOGFILE 2>&1
+    - php artisan route:cache >> $LOGFILE 2>&1
+    - php artisan view:cache >> $LOGFILE 2>&1
+
+    - echo "================ Deploy completed $(date) ================" >> $LOGFILE
