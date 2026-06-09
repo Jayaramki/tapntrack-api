@@ -2,9 +2,8 @@
 deployment:
   tasks:
     # ── Composer ─────────────────────────────────────────────────────────────
-    # Download composer.phar once; reused on every subsequent deploy
-    - test -f composer.phar || curl -sS https://getcomposer.org/installer | php
-    - php composer.phar install --no-dev --optimize-autoloader --no-interaction
+    # vendor/ is pre-built by GitHub Actions and committed to the deploy branch.
+    # composer install is skipped — nothing to download on the server.
 
     # ── Environment ──────────────────────────────────────────────────────────
     # Create .env from example on first deploy (already has DB credentials)
