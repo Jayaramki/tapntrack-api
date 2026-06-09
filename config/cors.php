@@ -1,11 +1,14 @@
 <?php
 
 return [
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    'paths' => ['v1/*', 'api/*', 'sanctum/csrf-cookie'],
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [env('FRONTEND_URL', 'https://app.tapntrack.in')],
+    'allowed_origins' => [
+        env('FRONTEND_URL', 'https://app.tapntrack.in'),
+        'http://localhost:4200',
+    ],
     'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
