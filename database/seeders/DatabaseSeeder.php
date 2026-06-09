@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\AppSetting;
+use App\Models\Book;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -19,6 +21,24 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Default book (book_id 1) that the seeded book_admin/agent belong to.
+        $book = Book::updateOrCreate(
+            ['id' => 1],
+            ['name' => 'Balaji Finance', 'owner_name' => 'Book Owner', 'is_active' => true, 'is_deleted' => false]
+        );
+
+        $settings = [
+            'APP_NAME' => 'TapNTrack',
+            'DAYS_TO_PAY' => '120',
+            'INTEREST_PERCENTAGE' => '20',
+        ];
+        foreach ($settings as $key => $value) {
+            AppSetting::updateOrCreate(
+                ['book_id' => $book->id, 'key' => $key],
+                ['value' => $value]
+            );
+        }
+
         $password = 'Admin@123';
 
         $users = [

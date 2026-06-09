@@ -2,7 +2,103 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Requests\StoreBookRequest;
+use App\Http\Requests\UpdateBookRequest;
+use App\Models\AppSetting;
+use App\Models\Book;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
+
 class BookController extends ApiController
 {
-    // TODO: Implement book management endpoints.
+    public function index(): JsonResponse
+    {
+        $books = Book::withCount('users')
+            ->where('is_deleted', false)
+            ->orderBy('name')
+            ->get();
+
+        return $this->success($books);
+    }
+
+    public function show(int $id): JsonResponse
+    {
+        $book = Book::withCount('users')->where('is_deleted', false)->find($id);
+
+        if (! $book) {
+            return $this->error('Book not found', [], 404);
+        }
+
+        return $this->success($book);
+    }
+
+    public function store(StoreBookRequest $request): JsonResponse
+    {
+        $book = DB::transaction(function () use ($request) {
+            $book = Book::create([
+                'name' => $request->input('name'),
+                'owner_name' => $request->input('owner_name'),
+                'is_active' => $request->boolean('is_active', true),
+                'is_deleted' => false,
+            ]);
+
+            // Auto-seed default app settings for the new book
+            $defaults = [
+                'APP_NAME' => 'TapNTrack',
+                'DAYS_TO_PAY' => '120',
+                'INTEREST_PERCENTAGE' => '20',
+            ];
+            foreach ($defaults as $key => $value) {
+                AppSetting::create([
+                    'book_id' => $book->id,
+                    'key' => $key,
+                    'value' => $value,
+                    'updated_by' => auth()->id(),
+                ]);
+            }
+
+            return $book;
+        });
+
+        return $this->success($book, 'Book created successfully', 201);
+    }
+
+    public function update(UpdateBookRequest $request, int $id): JsonResponse
+    {
+        $book = Book::where('is_deleted', false)->find($id);
+
+        if (! $book) {
+            return $this->error('Book not found', [], 404);
+        }
+
+        $book->update($request->only(['name', 'owner_name', 'is_active']));
+
+        return $this->success($book, 'Book updated successfully');
+    }
+
+    public function toggleActive(int $id): JsonResponse
+    {
+        $book = Book::where('is_deleted', false)->find($id);
+
+        if (! $book) {
+            return $this->error('Book not found', [], 404);
+        }
+
+        $book->update(['is_active' => ! $book->is_active]);
+
+        return $this->success($book, 'Book status updated');
+    }
+
+    public function destroy(int $id): JsonResponse
+    {
+        $book = Book::where('is_deleted', false)->find($id);
+
+        if (! $book) {
+            return $this->error('Book not found', [], 404);
+        }
+
+        $book->update(['is_deleted' => true]);
+
+        return $this->success(null, 'Book deleted successfully');
+    }
 }

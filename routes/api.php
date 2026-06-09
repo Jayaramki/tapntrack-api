@@ -51,6 +51,11 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::middleware(['auth:api', 'role:super_admin'])->group(function () {
-        Route::apiResource('books', BookController::class)->only(['index', 'store', 'update']);
+        Route::get('books', [BookController::class, 'index']);
+        Route::post('books', [BookController::class, 'store']);
+        Route::get('books/{id}', [BookController::class, 'show']);
+        Route::put('books/{id}', [BookController::class, 'update']);
+        Route::patch('books/{id}/toggle-active', [BookController::class, 'toggleActive']);
+        Route::delete('books/{id}', [BookController::class, 'destroy']);
     });
 });
