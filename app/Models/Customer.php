@@ -23,7 +23,6 @@ class Customer extends Model
     protected function casts(): array
     {
         return [
-            'book_id' => 'integer',
             'is_active' => 'boolean',
         ];
     }

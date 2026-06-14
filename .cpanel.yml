@@ -67,12 +67,11 @@ deployment:
     - echo "[9] Clearing caches" >> $LOGFILE
     - php artisan optimize:clear >> $LOGFILE 2>&1
 
-    # [10] Migrate — ONE-TIME FRESH for the UUID primary-key conversion.
-    # migrate:fresh drops ALL tables (the old integer-keyed schema) and rebuilds
-    # them with UUID keys. Safe: no real data yet. REVERT to `migrate --force`
-    # after this deploy succeeds so future deploys don't wipe the database.
-    - echo "[10] Running migrations (migrate:fresh — one-time UUID conversion)" >> $LOGFILE
-    - php artisan migrate:fresh --force >> $LOGFILE 2>&1
+    # [10] Migrate (idempotent — only applies pending migrations)
+    # NOTE: the one-time `migrate:fresh` for the UUID conversion already ran on
+    # the server; back to plain migrate so deploys never wipe the database.
+    - echo "[10] Running migrations" >> $LOGFILE
+    - php artisan migrate --force >> $LOGFILE 2>&1
 
     # [11] Seed (idempotent — seeder uses updateOrCreate)
     - echo "[11] Seeding users" >> $LOGFILE

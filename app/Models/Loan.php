@@ -27,8 +27,6 @@ class Loan extends Model
     protected function casts(): array
     {
         return [
-            'book_id' => 'integer',
-            'customer_id' => 'integer',
             'loan_amount' => 'decimal:2',
             'interest_amount' => 'decimal:2',
             'total_collected' => 'decimal:2',
