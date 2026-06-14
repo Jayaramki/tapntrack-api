@@ -6,13 +6,10 @@ use App\Models\AppSetting;
 use App\Models\Book;
 use App\Models\Customer;
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
      * Seed the application's database.
      *
@@ -22,9 +19,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Default book (book_id 1) that the seeded book_admin/agent belong to.
+        // Default book the seeded book_admin/agent belong to. Real books created
+        // via the API get random UUIDs (HasUuids); only this dev-seed book uses a
+        // fixed sentinel UUID so the frontend's DEFAULT_BOOK_ID fallback (the old
+        // "?? 1" default) resolves to a book that actually exists.
         $book = Book::updateOrCreate(
-            ['id' => 1],
+            ['id' => '00000000-0000-0000-0000-000000000001'],
             ['name' => 'Balaji Finance', 'owner_name' => 'Book Owner', 'is_active' => true, 'is_deleted' => false]
         );
 
@@ -73,7 +73,7 @@ class DatabaseSeeder extends Seeder
                 'last_name' => 'Admin',
                 'email' => 'bookadmin@tapntrack.in',
                 'role' => 'book_admin',
-                'book_id' => 1,
+                'book_id' => $book->id,
                 'phone' => '9876543211',
                 'security_question' => 'What is your mother maiden name?',
                 'security_answer' => 'lakshmi',
@@ -84,7 +84,7 @@ class DatabaseSeeder extends Seeder
                 'last_name' => 'Agent',
                 'email' => 'agent@tapntrack.in',
                 'role' => 'field_agent',
-                'book_id' => 1,
+                'book_id' => $book->id,
                 'phone' => '9876543212',
                 'security_question' => 'What is your school name?',
                 'security_answer' => 'vivekananda',

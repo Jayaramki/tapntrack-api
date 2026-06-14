@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('last_name')->nullable()->after('first_name');
             $table->string('phone')->nullable()->after('email');
             $table->string('role')->default('field_agent')->after('remember_token');
-            $table->unsignedBigInteger('book_id')->nullable()->after('role');
+            $table->uuid('book_id')->nullable()->after('role');
             $table->boolean('is_active')->default(true)->after('book_id');
             $table->json('permissions')->nullable()->after('is_active');
             $table->string('security_question')->nullable()->after('permissions');

@@ -33,11 +33,11 @@ class ApiController extends Controller
      *
      * Usage: if ($deny = $this->denyBookAccess($bookId)) return $deny;
      */
-    protected function denyBookAccess(int $bookId): ?JsonResponse
+    protected function denyBookAccess(string $bookId): ?JsonResponse
     {
         $user = auth()->user();
 
-        if ($user && $user->role !== 'super_admin' && (int) $user->book_id !== $bookId) {
+        if ($user && $user->role !== 'super_admin' && (string) $user->book_id !== $bookId) {
             return $this->error('Access denied to this book', [], 403);
         }
 

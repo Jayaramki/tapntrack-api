@@ -12,7 +12,7 @@ class AppSettingController extends ApiController
     public function index(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'book_id' => ['required', 'integer', 'exists:books,id'],
+            'book_id' => ['required', 'uuid', 'exists:books,id'],
         ]);
 
         $settings = AppSetting::where('book_id', $data['book_id'])

@@ -14,7 +14,7 @@ class UpdateSettingRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'book_id' => ['required', 'integer', 'exists:books,id'],
+            'book_id' => ['required', 'uuid', 'exists:books,id'],
             'key' => ['required', 'string', 'in:APP_NAME,DAYS_TO_PAY,INTEREST_PERCENTAGE'],
             'value' => ['required', 'string', 'max:255'],
         ];

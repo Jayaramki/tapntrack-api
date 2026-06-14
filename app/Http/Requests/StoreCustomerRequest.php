@@ -15,7 +15,7 @@ class StoreCustomerRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'book_id' => ['required', 'integer', 'exists:books,id'],
+            'book_id' => ['required', 'uuid', 'exists:books,id'],
             'name' => ['required', 'string', 'max:150'],
             'father_name' => ['nullable', 'string', 'max:150'],
             'phone' => [

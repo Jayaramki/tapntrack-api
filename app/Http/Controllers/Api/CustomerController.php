@@ -13,12 +13,12 @@ class CustomerController extends ApiController
     public function index(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'book_id' => ['required', 'integer', 'exists:books,id'],
+            'book_id' => ['required', 'uuid', 'exists:books,id'],
             'search' => ['nullable', 'string'],
             'status' => ['nullable', 'in:active,inactive'],
         ]);
 
-        if ($deny = $this->denyBookAccess((int) $data['book_id'])) {
+        if ($deny = $this->denyBookAccess((string) $data['book_id'])) {
             return $deny;
         }
 
@@ -35,7 +35,7 @@ class CustomerController extends ApiController
         return $this->success($customers);
     }
 
-    public function show(int $id): JsonResponse
+    public function show(string $id): JsonResponse
     {
         $customer = Customer::find($id);
 
@@ -43,7 +43,7 @@ class CustomerController extends ApiController
             return $this->error('Customer not found', [], 404);
         }
 
-        if ($deny = $this->denyBookAccess((int) $customer->book_id)) {
+        if ($deny = $this->denyBookAccess((string) $customer->book_id)) {
             return $deny;
         }
 
@@ -52,7 +52,7 @@ class CustomerController extends ApiController
 
     public function store(StoreCustomerRequest $request): JsonResponse
     {
-        if ($deny = $this->denyBookAccess((int) $request->input('book_id'))) {
+        if ($deny = $this->denyBookAccess((string) $request->input('book_id'))) {
             return $deny;
         }
 
@@ -69,7 +69,7 @@ class CustomerController extends ApiController
         return $this->success($customer, 'Customer created successfully', 201);
     }
 
-    public function update(UpdateCustomerRequest $request, int $id): JsonResponse
+    public function update(UpdateCustomerRequest $request, string $id): JsonResponse
     {
         $customer = Customer::find($id);
 
@@ -77,7 +77,7 @@ class CustomerController extends ApiController
             return $this->error('Customer not found', [], 404);
         }
 
-        if ($deny = $this->denyBookAccess((int) $customer->book_id)) {
+        if ($deny = $this->denyBookAccess((string) $customer->book_id)) {
             return $deny;
         }
 
@@ -88,7 +88,7 @@ class CustomerController extends ApiController
         return $this->success($customer, 'Customer updated successfully');
     }
 
-    public function toggleStatus(int $id): JsonResponse
+    public function toggleStatus(string $id): JsonResponse
     {
         $customer = Customer::find($id);
 
@@ -96,7 +96,7 @@ class CustomerController extends ApiController
             return $this->error('Customer not found', [], 404);
         }
 
-        if ($deny = $this->denyBookAccess((int) $customer->book_id)) {
+        if ($deny = $this->denyBookAccess((string) $customer->book_id)) {
             return $deny;
         }
 

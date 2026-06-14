@@ -21,7 +21,7 @@ class BookController extends ApiController
         return $this->success($books);
     }
 
-    public function show(int $id): JsonResponse
+    public function show(string $id): JsonResponse
     {
         $book = Book::withCount('users')->where('is_deleted', false)->find($id);
 
@@ -63,7 +63,7 @@ class BookController extends ApiController
         return $this->success($book, 'Book created successfully', 201);
     }
 
-    public function update(UpdateBookRequest $request, int $id): JsonResponse
+    public function update(UpdateBookRequest $request, string $id): JsonResponse
     {
         $book = Book::where('is_deleted', false)->find($id);
 
@@ -76,7 +76,7 @@ class BookController extends ApiController
         return $this->success($book, 'Book updated successfully');
     }
 
-    public function toggleActive(int $id): JsonResponse
+    public function toggleActive(string $id): JsonResponse
     {
         $book = Book::where('is_deleted', false)->find($id);
 
@@ -89,7 +89,7 @@ class BookController extends ApiController
         return $this->success($book, 'Book status updated');
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(string $id): JsonResponse
     {
         $book = Book::where('is_deleted', false)->find($id);
 
