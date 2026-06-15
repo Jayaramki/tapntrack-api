@@ -38,8 +38,16 @@ Route::prefix('v1')->group(function () {
         Route::get('customers/{id}', [CustomerController::class, 'show']);
         Route::put('customers/{id}', [CustomerController::class, 'update']);
         Route::patch('customers/{id}/toggle-status', [CustomerController::class, 'toggleStatus']);
-        Route::apiResource('expense-categories', ExpenseCategoryController::class)->except(['create', 'edit']);
-        Route::apiResource('expenses', ExpenseController::class)->except(['create', 'edit']);
+        Route::get('expense-categories', [ExpenseCategoryController::class, 'index']);
+        Route::post('expense-categories', [ExpenseCategoryController::class, 'store']);
+        Route::put('expense-categories/{id}', [ExpenseCategoryController::class, 'update']);
+        Route::delete('expense-categories/{id}', [ExpenseCategoryController::class, 'destroy']);
+
+        Route::get('expenses', [ExpenseController::class, 'index']);
+        Route::post('expenses', [ExpenseController::class, 'store']);
+        Route::get('expenses/{id}', [ExpenseController::class, 'show']);
+        Route::put('expenses/{id}', [ExpenseController::class, 'update']);
+        Route::patch('expenses/{id}/toggle-status', [ExpenseController::class, 'toggleStatus']);
         Route::get('loans', [LoanController::class, 'index']);
         Route::get('loans/deleted', [LoanController::class, 'deleted']);
         Route::get('loans/archived', [LoanController::class, 'archived']);

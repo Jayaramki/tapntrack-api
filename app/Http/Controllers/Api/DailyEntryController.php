@@ -6,6 +6,7 @@ use App\Http\Requests\BulkDailyEntryRequest;
 use App\Http\Requests\StoreDailyEntryRequest;
 use App\Http\Requests\UpdateDailyEntryRequest;
 use App\Models\DailyEntry;
+use App\Models\Expense;
 use App\Models\Loan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -79,8 +80,10 @@ class DailyEntryController extends ApiController
         $cash = (float) $entries->where('mode', 'cash')->sum('amount');
         $gpay = (float) $entries->where('mode', 'gpay')->sum('amount');
         $collection = $cash + $gpay;
-        // Expenses domain not built yet — total_expenses stays 0 until then.
-        $expenses = 0.0;
+        $expenses = (float) Expense::where('book_id', $data['book_id'])
+            ->where('expense_date', $data['date'])
+            ->where('is_active', true)
+            ->sum('amount');
 
         return $this->success([
             'date' => $data['date'],

@@ -6,6 +6,7 @@ use App\Http\Requests\StoreBookRequest;
 use App\Http\Requests\UpdateBookRequest;
 use App\Models\AppSetting;
 use App\Models\Book;
+use App\Models\ExpenseCategory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -54,6 +55,22 @@ class BookController extends ApiController
                     'key' => $key,
                     'value' => $value,
                     'updated_by' => auth()->id(),
+                ]);
+            }
+
+            // Auto-seed default expense categories for the new book
+            $categories = [
+                ['name' => 'Cheetu', 'color' => '#E65100'],
+                ['name' => 'Vatti', 'color' => '#C62828'],
+                ['name' => 'GPay', 'color' => '#1565C0'],
+                ['name' => 'Other', 'color' => '#546E7A'],
+            ];
+            foreach ($categories as $cat) {
+                ExpenseCategory::create([
+                    'book_id' => $book->id,
+                    'name' => $cat['name'],
+                    'color' => $cat['color'],
+                    'is_active' => true,
                 ]);
             }
 

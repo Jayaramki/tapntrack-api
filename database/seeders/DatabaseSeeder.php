@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\AppSetting;
 use App\Models\Book;
 use App\Models\Customer;
+use App\Models\ExpenseCategory;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -37,6 +38,20 @@ class DatabaseSeeder extends Seeder
             AppSetting::updateOrCreate(
                 ['book_id' => $book->id, 'key' => $key],
                 ['value' => $value]
+            );
+        }
+
+        // Default expense categories for the book (idempotent on book_id + name).
+        $categories = [
+            ['name' => 'Cheetu', 'color' => '#E65100'],
+            ['name' => 'Vatti', 'color' => '#C62828'],
+            ['name' => 'GPay', 'color' => '#1565C0'],
+            ['name' => 'Other', 'color' => '#546E7A'],
+        ];
+        foreach ($categories as $cat) {
+            ExpenseCategory::updateOrCreate(
+                ['book_id' => $book->id, 'name' => $cat['name']],
+                ['color' => $cat['color'], 'is_active' => true]
             );
         }
 
