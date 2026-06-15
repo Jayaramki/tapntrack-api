@@ -344,7 +344,8 @@ class LoanController extends ApiController
             'updated_at' => $loan->updated_at,
             'customer_name' => $loan->customer?->name ?? '',
             'total_collected' => $collected,
-            'remaining_balance' => round($amount + $interest - $collected, 2),
+            // Interest is withheld upfront; the customer repays loan_amount in full.
+            'remaining_balance' => round($amount - $collected, 2),
         ];
     }
 
@@ -371,7 +372,8 @@ class LoanController extends ApiController
             'updated_at' => $loan->updated_at,
             'customer_name' => $loan->customer?->name ?? '',
             'total_collected' => $collected,
-            'remaining_balance' => round($amount + $interest - $collected, 2),
+            // Interest is withheld upfront; the customer repays loan_amount in full.
+            'remaining_balance' => round($amount - $collected, 2),
         ];
     }
 }

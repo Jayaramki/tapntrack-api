@@ -61,7 +61,6 @@ class LedgerController extends ApiController
             }
 
             $amount = (float) $loan->loan_amount;
-            $interest = (float) $loan->interest_amount;
             $collected = (float) $loan->total_collected;
 
             return [
@@ -71,7 +70,8 @@ class LedgerController extends ApiController
                 'loan_amount' => $amount,
                 'line' => $loan->line,
                 'total_collected' => $collected,
-                'remaining_balance' => round($amount + $interest - $collected, 2),
+                // Interest is withheld upfront; customer repays loan_amount in full.
+                'remaining_balance' => round($amount - $collected, 2),
                 'cells' => $cells,
             ];
         });
