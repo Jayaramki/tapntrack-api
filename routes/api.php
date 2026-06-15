@@ -57,6 +57,7 @@ Route::prefix('v1')->group(function () {
         Route::get('daily-entries/by-loan', [DailyEntryController::class, 'byLoan']);
         Route::get('daily-entries/summary', [DailyEntryController::class, 'summary']);
         Route::post('daily-entries/bulk', [DailyEntryController::class, 'bulk']);
+        Route::post('daily-entries', [DailyEntryController::class, 'store']);
         Route::put('daily-entries/{id}', [DailyEntryController::class, 'update']);
         Route::delete('daily-entries/{id}', [DailyEntryController::class, 'destroy']);
         Route::get('ledger', [LedgerController::class, 'index']);
