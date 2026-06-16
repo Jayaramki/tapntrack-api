@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreExpenseCategoryRequest;
 use App\Http\Requests\UpdateExpenseCategoryRequest;
+use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -59,7 +60,10 @@ class ExpenseCategoryController extends ApiController
         return $this->success($category, 'Category updated');
     }
 
-    /** Soft-remove: keep the row (existing expenses reference its name) but deactivate. */
+    /**
+     * A category referenced by ANY expense cannot be deleted — only deactivated.
+     * Otherwise it is removed.
+     */
     public function destroy(string $id): JsonResponse
     {
         $category = ExpenseCategory::find($id);
@@ -70,8 +74,16 @@ class ExpenseCategoryController extends ApiController
             return $deny;
         }
 
-        $category->update(['is_active' => false]);
+        $inUse = Expense::where('book_id', $category->book_id)
+            ->where('category', $category->name)
+            ->exists();
 
-        return $this->success(null, 'Category removed');
+        if ($inUse) {
+            return $this->error('This category is used by existing expenses and cannot be deleted. Deactivate it instead.', [], 409);
+        }
+
+        $category->delete();
+
+        return $this->success(null, 'Category deleted');
     }
 }

@@ -29,7 +29,7 @@ class UpdateLoanRequest extends FormRequest
             'loan_amount' => ['sometimes', 'numeric', 'min:1'],
             'interest_amount' => ['sometimes', 'numeric', 'min:0'],
             'loan_type' => ['sometimes', 'in:daily,weekly,monthly'],
-            'line' => ['sometimes', 'in:line1,line2,line3,line4,line5,line6'],
+            'line' => ['sometimes', 'string', 'max:50'],
             'issued_date' => ['sometimes', 'date'],
         ];
     }

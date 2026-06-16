@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\DailyEntryController;
 use App\Http\Controllers\Api\ExpenseCategoryController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\LedgerController;
+use App\Http\Controllers\Api\LineController;
 use App\Http\Controllers\Api\LoanController;
 use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\DashboardController;
@@ -48,6 +49,11 @@ Route::prefix('v1')->group(function () {
         Route::get('expenses/{id}', [ExpenseController::class, 'show']);
         Route::put('expenses/{id}', [ExpenseController::class, 'update']);
         Route::patch('expenses/{id}/toggle-status', [ExpenseController::class, 'toggleStatus']);
+
+        Route::get('lines', [LineController::class, 'index']);
+        Route::post('lines', [LineController::class, 'store']);
+        Route::put('lines/{id}', [LineController::class, 'update']);
+        Route::delete('lines/{id}', [LineController::class, 'destroy']);
         Route::get('loans', [LoanController::class, 'index']);
         Route::get('loans/deleted', [LoanController::class, 'deleted']);
         Route::get('loans/archived', [LoanController::class, 'archived']);

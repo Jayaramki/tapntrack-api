@@ -24,7 +24,7 @@ class StoreLoanRequest extends FormRequest
             'loan_amount' => ['required', 'numeric', 'min:1'],
             'interest_amount' => ['required', 'numeric', 'min:0'],
             'loan_type' => ['required', 'in:daily,weekly,monthly'],
-            'line' => ['required', 'in:line1,line2,line3,line4,line5,line6'],
+            'line' => ['required', 'string', 'max:50'],
             'issued_date' => ['required', 'date'],
         ];
     }

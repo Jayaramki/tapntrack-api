@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateBookRequest;
 use App\Models\AppSetting;
 use App\Models\Book;
 use App\Models\ExpenseCategory;
+use App\Models\Line;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -70,6 +71,16 @@ class BookController extends ApiController
                     'book_id' => $book->id,
                     'name' => $cat['name'],
                     'color' => $cat['color'],
+                    'is_active' => true,
+                ]);
+            }
+
+            // Auto-seed default collection lines for the new book
+            foreach (['Line 1', 'Line 2', 'Line 3', 'Line 4', 'Line 5', 'Line 6'] as $lineName) {
+                Line::create([
+                    'book_id' => $book->id,
+                    'name' => $lineName,
+                    'color' => '#546E7A',
                     'is_active' => true,
                 ]);
             }

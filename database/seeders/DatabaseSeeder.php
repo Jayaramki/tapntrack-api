@@ -6,6 +6,7 @@ use App\Models\AppSetting;
 use App\Models\Book;
 use App\Models\Customer;
 use App\Models\ExpenseCategory;
+use App\Models\Line;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -52,6 +53,14 @@ class DatabaseSeeder extends Seeder
             ExpenseCategory::updateOrCreate(
                 ['book_id' => $book->id, 'name' => $cat['name']],
                 ['color' => $cat['color'], 'is_active' => true]
+            );
+        }
+
+        // Default collection lines for the book (idempotent on book_id + name).
+        foreach (['Line 1', 'Line 2', 'Line 3', 'Line 4', 'Line 5', 'Line 6'] as $lineName) {
+            Line::updateOrCreate(
+                ['book_id' => $book->id, 'name' => $lineName],
+                ['color' => '#546E7A', 'is_active' => true]
             );
         }
 
