@@ -68,12 +68,10 @@ deployment:
     - php artisan optimize:clear >> $LOGFILE 2>&1
 
     # [10] Migrate (idempotent — only applies pending migrations)
-    # ⚠️ ONE-TIME WIPE: set to `migrate:fresh` to drop ALL tables and rebuild
-    # from scratch, then reseed fresh demo data (step 11). REVERT to plain
-    # `migrate --force` immediately after this deploy succeeds, or every future
-    # deploy will wipe the database.
-    - echo "[10] Running migrations (FRESH — wipes DB)" >> $LOGFILE
-    - php artisan migrate:fresh --force >> $LOGFILE 2>&1
+    # NOTE: the one-time `migrate:fresh` reseed already ran on the server; back
+    # to plain migrate so deploys never wipe the database.
+    - echo "[10] Running migrations" >> $LOGFILE
+    - php artisan migrate --force >> $LOGFILE 2>&1
 
     # [11] Seed (idempotent — seeder uses updateOrCreate)
     - echo "[11] Seeding users" >> $LOGFILE
