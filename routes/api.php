@@ -32,7 +32,12 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::middleware(['auth:api'])->group(function () {
-        Route::apiResource('users', UserController::class)->except(['create', 'edit']);
+        Route::get('users', [UserController::class, 'index']);
+        Route::post('users', [UserController::class, 'store']);
+        Route::get('users/{id}', [UserController::class, 'show']);
+        Route::put('users/{id}', [UserController::class, 'update']);
+        Route::patch('users/{id}/toggle-status', [UserController::class, 'toggleStatus']);
+        Route::delete('users/{id}', [UserController::class, 'destroy']);
 
         Route::get('customers', [CustomerController::class, 'index']);
         Route::post('customers', [CustomerController::class, 'store']);
