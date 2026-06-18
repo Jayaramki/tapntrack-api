@@ -8,9 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
 
 /**
- * Defense-in-depth tenant isolation for Book + User. Filters every query to the
- * current tenant unless the request is unauthenticated, run in console, or made
- * by the platform owner (super_admin). Reads TenantContext (never auth()) to
+ * Tenant isolation for Book + User. Filters every query to the effective tenant.
+ * A platform admin (super_admin) with no tenant selected sees NOTHING (they
+ * manage tenants/billing, not borrower data) — access to a tenant's records is
+ * only via explicit impersonation. Unauthenticated/console requests (login,
+ * register, seeders) are not filtered. Reads TenantContext (never auth()) to
  * avoid recursing through the token guard during user resolution.
  */
 class BelongsToTenant implements Scope
@@ -19,10 +21,13 @@ class BelongsToTenant implements Scope
     {
         $context = app(TenantContext::class);
 
-        if (! $context->shouldScope()) {
+        if ($context->shouldScope()) {
+            $builder->where($model->qualifyColumn('tenant_id'), $context->effectiveTenantId());
             return;
         }
 
-        $builder->where($model->qualifyColumn('tenant_id'), $context->tenantId());
+        if ($context->shouldBlockAll()) {
+            $builder->whereRaw('1 = 0');
+        }
     }
 }

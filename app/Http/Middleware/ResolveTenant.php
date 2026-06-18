@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Tenant;
 use App\Support\TenantContext;
 use Closure;
 use Illuminate\Http\Request;
@@ -12,9 +13,12 @@ use Symfony\Component\HttpFoundation\Response;
  * so the user is already resolved (calling $request->user() here returns the
  * cached guard user, no re-query).
  *
- * Also cross-checks the X-Tenant header (the slug the SPA is acting under)
- * against the user's tenant so a token from tenant A can't be replayed on
- * tenant B's URL.
+ *  - Normal user: effective tenant = their own tenant. The X-Tenant header (the
+ *    slug the SPA acts under) is cross-checked so a token from tenant A can't be
+ *    replayed on tenant B's URL.
+ *  - Platform admin (super_admin): NO effective tenant by default — they see no
+ *    borrower data. They may act on one tenant by sending X-Impersonate-Tenant
+ *    (a slug); only then does that tenant become effective.
  */
 class ResolveTenant
 {
@@ -22,19 +26,31 @@ class ResolveTenant
     {
         $user = $request->user();
 
-        if ($user) {
-            $isPlatformAdmin = $user->role === 'super_admin';
+        if (! $user) {
+            return $next($request);
+        }
 
-            app(TenantContext::class)->set($user->tenant_id, $isPlatformAdmin);
+        $context = app(TenantContext::class);
 
-            // Cross-check the acting tenant slug against the token's tenant.
-            $headerSlug = $request->header('X-Tenant');
-            if ($headerSlug && ! $isPlatformAdmin && $user->tenant && $user->tenant->slug !== $headerSlug) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Tenant mismatch',
-                ], 403);
-            }
+        if ($user->role === 'super_admin') {
+            $slug = $request->header('X-Impersonate-Tenant');
+            $tenant = $slug ? Tenant::where('slug', $slug)->where('is_deleted', false)->first() : null;
+            // Impersonating a valid tenant -> that tenant is effective; otherwise
+            // the platform admin has no tenant and sees no borrower data.
+            $context->set($tenant?->id, isPlatformAdmin: true, impersonating: (bool) $tenant);
+
+            return $next($request);
+        }
+
+        $context->set($user->tenant_id, isPlatformAdmin: false);
+
+        // Cross-check the acting tenant slug against the token's tenant.
+        $headerSlug = $request->header('X-Tenant');
+        if ($headerSlug && $user->tenant && $user->tenant->slug !== $headerSlug) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tenant mismatch',
+            ], 403);
         }
 
         return $next($request);

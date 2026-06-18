@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Book;
 use App\Models\Scopes\BelongsToTenant;
+use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 
 class ApiController extends Controller
@@ -29,10 +30,11 @@ class ApiController extends Controller
     }
 
     /**
-     * Enforce tenant + book isolation. Layers:
-     *   - super_admin (platform owner) → any book in any tenant.
-     *   - the book must belong to the user's tenant (else 403).
-     *   - tenant_admin → any book within their tenant.
+     * Enforce tenant + book isolation against the *effective* tenant (a normal
+     * user's own tenant, or the tenant a platform admin is impersonating):
+     *   - no effective tenant (platform admin not impersonating) → denied.
+     *   - the book must belong to the effective tenant (else 403).
+     *   - tenant_admin / impersonating super_admin → any book in that tenant.
      *   - book_admin / field_agent → only their assigned book.
      *
      * Returns an error response to short-circuit on denial, or null when
@@ -48,21 +50,24 @@ class ApiController extends Controller
             return null;
         }
 
-        // Platform owner spans every tenant and book.
-        if ($user->role === 'super_admin') {
-            return null;
-        }
+        $effectiveTenantId = $this->currentTenantId();
 
-        // The book must belong to the user's tenant. Query without the tenant
-        // scope so a cross-tenant id returns an explicit 403, not a silent miss.
-        $book = Book::withoutGlobalScope(BelongsToTenant::class)->find($bookId);
-        if (! $book || (string) $book->tenant_id !== (string) $user->tenant_id) {
+        // Platform admin with no tenant selected has no borrower-data access.
+        if ($effectiveTenantId === null) {
             return $this->error('Access denied to this book', [], 403);
         }
 
-        // Within the tenant, only tenant_admin spans all books; others are
-        // pinned to their assigned book.
-        if ($user->role !== 'tenant_admin' && (string) $user->book_id !== $bookId) {
+        // The book must belong to the effective tenant. Query without the tenant
+        // scope so a cross-tenant id returns an explicit 403, not a silent miss.
+        $book = Book::withoutGlobalScope(BelongsToTenant::class)->find($bookId);
+        if (! $book || (string) $book->tenant_id !== (string) $effectiveTenantId) {
+            return $this->error('Access denied to this book', [], 403);
+        }
+
+        // Within the tenant, tenant_admin (and an impersonating super_admin) span
+        // all books; book_admin / field_agent are pinned to their assigned book.
+        $spansAllBooks = in_array($user->role, ['super_admin', 'tenant_admin'], true);
+        if (! $spansAllBooks && (string) $user->book_id !== $bookId) {
             return $this->error('Access denied to this book', [], 403);
         }
 
@@ -70,11 +75,12 @@ class ApiController extends Controller
     }
 
     /**
-     * The current authenticated user's tenant id (null for the platform owner
-     * or unauthenticated requests).
+     * The effective tenant id for this request: a normal user's own tenant, or
+     * the tenant a platform admin is impersonating. Null when a platform admin
+     * is not impersonating (or unauthenticated).
      */
     protected function currentTenantId(): ?string
     {
-        return auth()->user()?->tenant_id;
+        return app(TenantContext::class)->effectiveTenantId();
     }
 }

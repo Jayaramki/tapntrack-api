@@ -3,29 +3,36 @@
 namespace App\Support;
 
 /**
- * Request-scoped holder for the authenticated user's tenant. Populated by the
- * ResolveTenant middleware (which runs AFTER auth:api), read by the
- * BelongsToTenant global scope.
+ * Request-scoped holder for the tenant whose data the current request may touch
+ * ("effective tenant"). Populated by the ResolveTenant middleware (after
+ * auth:api), read by the BelongsToTenant global scope.
  *
- * Deliberately decoupled from auth() so the scope never triggers guard
- * resolution — querying the User model during token auth would otherwise
- * recurse. When nothing is set (login, register, console, seeders) the scope
- * simply does not filter.
+ * Effective tenant by caller:
+ *  - normal user            -> their own tenant_id.
+ *  - super_admin (platform) -> NONE by default (sees no tenant data); only when
+ *    impersonating does it become the target tenant.
+ *
+ * Decoupled from auth() so the scope never triggers guard resolution (querying
+ * the User model during token auth would recurse). When nothing is set (login,
+ * register, console, seeders) the scope does not filter.
  */
 class TenantContext
 {
     private ?string $tenantId = null;
     private bool $isPlatformAdmin = false;
+    private bool $impersonating = false;
     private bool $resolved = false;
 
-    public function set(?string $tenantId, bool $isPlatformAdmin): void
+    public function set(?string $tenantId, bool $isPlatformAdmin, bool $impersonating = false): void
     {
         $this->tenantId = $tenantId;
         $this->isPlatformAdmin = $isPlatformAdmin;
+        $this->impersonating = $impersonating;
         $this->resolved = true;
     }
 
-    public function tenantId(): ?string
+    /** The tenant whose data is accessible this request (null = none). */
+    public function effectiveTenantId(): ?string
     {
         return $this->tenantId;
     }
@@ -35,12 +42,24 @@ class TenantContext
         return $this->isPlatformAdmin;
     }
 
-    /**
-     * Should the BelongsToTenant scope apply? Only when we have a resolved,
-     * non-platform tenant. Platform admins (super_admin) span all tenants.
-     */
+    public function isImpersonating(): bool
+    {
+        return $this->impersonating;
+    }
+
+    /** Apply the tenant filter? Yes whenever an effective tenant is set. */
     public function shouldScope(): bool
     {
-        return $this->resolved && ! $this->isPlatformAdmin && $this->tenantId !== null;
+        return $this->resolved && $this->tenantId !== null;
+    }
+
+    /**
+     * Block all tenant data? A platform admin with no tenant selected sees no
+     * tenant data (they manage tenants/billing, not borrower records). Distinct
+     * from the unresolved case (login/console) which must NOT be blocked.
+     */
+    public function shouldBlockAll(): bool
+    {
+        return $this->resolved && $this->isPlatformAdmin && $this->tenantId === null;
     }
 }

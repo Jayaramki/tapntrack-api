@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\ApiController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookController;
@@ -86,6 +87,15 @@ Route::prefix('v1')->group(function () {
         Route::get('reports/loans', [ReportsController::class, 'loans']);
         Route::get('settings', [AppSettingController::class, 'index']);
         Route::put('settings', [AppSettingController::class, 'update']);
+    });
+
+    // Platform-admin console (super_admin only): tenant metadata + impersonation.
+    Route::middleware(['auth:api', 'tenant', 'role:super_admin'])->prefix('admin')->group(function () {
+        Route::get('tenants', [AdminController::class, 'tenants']);
+        Route::get('tenants/{id}', [AdminController::class, 'showTenant']);
+        Route::patch('tenants/{id}/status', [AdminController::class, 'updateStatus']);
+        Route::post('tenants/{id}/impersonate', [AdminController::class, 'impersonate']);
+        Route::post('stop-impersonate', [AdminController::class, 'stopImpersonate']);
     });
 
     Route::middleware(['auth:api', 'tenant', 'role:super_admin,tenant_admin'])->group(function () {
