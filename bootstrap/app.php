@@ -13,6 +13,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // JSON-only API: always render JSON (no 302 redirects on validation/auth).
+        $middleware->api(prepend: [
+            App\Http\Middleware\ForceJsonResponse::class,
+        ]);
+
         $middleware->alias([
             'role' => App\Http\Middleware\CheckRole::class,
             'tenant' => App\Http\Middleware\ResolveTenant::class,

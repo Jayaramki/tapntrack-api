@@ -68,7 +68,7 @@ class UserController extends ApiController
             'first_name' => $first,
             'last_name' => $last,
             'role' => $request->input('role'),
-            'book_id' => $request->input('role') === 'super_admin' ? null : $request->input('book_id'),
+            'book_id' => in_array($request->input('role'), ['super_admin', 'tenant_admin'], true) ? null : $request->input('book_id'),
             'phone' => $request->input('phone'),
             'security_question' => $request->input('security_question'),
             'security_answer' => $request->input('security_answer'),
@@ -92,7 +92,7 @@ class UserController extends ApiController
             return $deny;
         }
         $newRole = $request->input('role', $user->role);
-        $newBook = $newRole === 'super_admin' ? null : $request->input('book_id', $user->book_id);
+        $newBook = in_array($newRole, ['super_admin', 'tenant_admin'], true) ? null : $request->input('book_id', $user->book_id);
         if ($deny = $this->denyUserManagement($newRole, $newBook)) {
             return $deny;
         }
@@ -147,14 +147,31 @@ class UserController extends ApiController
     }
 
     /**
-     * super_admin manages anyone; book_admin may only manage field_agents in
-     * their own book; field_agent may manage no one.
+     * super_admin manages anyone; tenant_admin manages any non-platform user
+     * within their tenant; book_admin may only manage field_agents in their own
+     * book; field_agent may manage no one.
      */
     private function denyUserManagement(?string $targetRole, ?string $targetBookId): ?JsonResponse
     {
         $current = auth()->user();
 
         if ($current->role === 'super_admin') {
+            return null;
+        }
+
+        if ($current->role === 'tenant_admin') {
+            // May manage tenant_admin / book_admin / field_agent, never the
+            // platform owner. The book (when set) must be in this tenant.
+            if ($targetRole === 'super_admin') {
+                return $this->error('You cannot manage platform administrators', [], 403);
+            }
+            if ($targetBookId) {
+                $book = \App\Models\Book::withoutGlobalScope(\App\Models\Scopes\BelongsToTenant::class)->find($targetBookId);
+                if (! $book || (string) $book->tenant_id !== (string) $current->tenant_id) {
+                    return $this->error('Access denied to this book', [], 403);
+                }
+            }
+
             return null;
         }
 

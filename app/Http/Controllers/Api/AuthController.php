@@ -2,22 +2,82 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Requests\RegisterRequest;
+use App\Models\Book;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Services\BookProvisioner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class AuthController extends ApiController
 {
+    /**
+     * Self-signup: create a tenant (free trial) with its first tenant_admin and
+     * a starter book (default settings/categories/lines), then log them in.
+     */
+    public function register(RegisterRequest $request, BookProvisioner $provisioner): JsonResponse
+    {
+        $data = $request->validated();
+
+        $user = DB::transaction(function () use ($data, $provisioner) {
+            $tenant = Tenant::create([
+                'slug' => $data['slug'],
+                'name' => $data['tenant_name'],
+                'owner_name' => $data['owner_name'] ?? null,
+                'email' => $data['email'] ?? null,
+                'phone' => $data['phone'] ?? null,
+                'status' => 'trial',
+                'trial_ends_at' => now()->addDays(14),
+                'is_deleted' => false,
+            ]);
+
+            $book = Book::create([
+                'tenant_id' => $tenant->id,
+                'name' => $data['tenant_name'],
+                'owner_name' => $data['owner_name'] ?? null,
+                'is_active' => true,
+                'is_deleted' => false,
+            ]);
+            $provisioner->seedDefaults($book, appName: $data['tenant_name']);
+
+            $user = User::create([
+                'tenant_id' => $tenant->id,
+                'name' => $data['username'],
+                'email' => $data['username'].'@'.$data['slug'].'.tapntrack.local',
+                'username' => $data['username'],
+                'password' => $data['password'],
+                'role' => 'tenant_admin',
+                'book_id' => null,
+                'phone' => $data['phone'] ?? null,
+                'security_question' => $data['security_question'] ?? null,
+                'security_answer' => $data['security_answer'] ?? null,
+                'is_active' => true,
+                'is_deleted' => false,
+                'permissions' => null,
+            ]);
+
+            $user->api_token = Str::random(80);
+            $user->save();
+
+            return $user;
+        });
+
+        return $this->success($this->formatUser($user, true), 'Registration successful', 201);
+    }
+
     public function login(Request $request): JsonResponse
     {
         $data = $request->validate([
             'username' => ['required', 'string'],
             'password' => ['required', 'string'],
+            'tenant_slug' => ['nullable', 'string'],
         ]);
 
-        $user = User::where('username', $data['username'])->first();
+        $user = $this->resolveUser($data['username'], $data['tenant_slug'] ?? null);
 
         if (! $user || ! Hash::check($data['password'], $user->password) || ! $user->is_active) {
             return $this->error('Invalid username or password', [], 401);
@@ -27,6 +87,27 @@ class AuthController extends ApiController
         $user->save();
 
         return $this->success($this->formatUser($user, true), 'Login successful');
+    }
+
+    /**
+     * Resolve a user by username, scoped to a tenant when a slug is supplied.
+     * No auth context exists yet at login, so the BelongsToTenant scope is
+     * inert here — tenant scoping is applied explicitly. When no slug is given
+     * (legacy clients, single-tenant), falls back to a global lookup.
+     */
+    private function resolveUser(string $username, ?string $tenantSlug): ?User
+    {
+        $query = User::where('username', $username)->where('is_deleted', false);
+
+        if ($tenantSlug) {
+            $tenant = Tenant::where('slug', $tenantSlug)->where('is_deleted', false)->first();
+            if (! $tenant) {
+                return null;
+            }
+            $query->where('tenant_id', $tenant->id);
+        }
+
+        return $query->first();
     }
 
     public function logout(Request $request): JsonResponse
@@ -56,9 +137,10 @@ class AuthController extends ApiController
     {
         $data = $request->validate([
             'username' => ['required', 'string'],
+            'tenant_slug' => ['nullable', 'string'],
         ]);
 
-        $user = User::where('username', $data['username'])->first();
+        $user = $this->resolveUser($data['username'], $data['tenant_slug'] ?? null);
 
         if (! $user) {
             return $this->error('Username not found', [], 404);
@@ -73,9 +155,10 @@ class AuthController extends ApiController
             'username' => ['required', 'string'],
             'answer' => ['required', 'string'],
             'new_password' => ['required', 'string', 'min:6'],
+            'tenant_slug' => ['nullable', 'string'],
         ]);
 
-        $user = User::where('username', $data['username'])->first();
+        $user = $this->resolveUser($data['username'], $data['tenant_slug'] ?? null);
 
         if (! $user || ! $user->security_answer || strtolower(trim($user->security_answer)) !== strtolower(trim($data['answer']))) {
             return $this->error('Security answer is incorrect', [], 400);

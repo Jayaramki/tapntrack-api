@@ -20,6 +20,7 @@ Route::prefix('v1')->group(function () {
     Route::get('health', fn() => response()->json(['success' => true]));
 
     Route::prefix('auth')->group(function () {
+        Route::post('register', [AuthController::class, 'register'])->middleware('throttle:10,1');
         Route::post('login', [AuthController::class, 'login']);
         Route::get('security-question', [AuthController::class, 'getSecurityQuestion']);
         Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
@@ -87,7 +88,7 @@ Route::prefix('v1')->group(function () {
         Route::put('settings', [AppSettingController::class, 'update']);
     });
 
-    Route::middleware(['auth:api', 'tenant', 'role:super_admin'])->group(function () {
+    Route::middleware(['auth:api', 'tenant', 'role:super_admin,tenant_admin'])->group(function () {
         Route::get('books', [BookController::class, 'index']);
         Route::post('books', [BookController::class, 'store']);
         Route::get('books/{id}', [BookController::class, 'show']);

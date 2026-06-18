@@ -8,18 +8,18 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckRole
 {
-    public function handle(Request $request, Closure $next, string $roles = null): Response
+    public function handle(Request $request, Closure $next, string ...$roles): Response
     {
         if (! $request->user()) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
-        if (! $roles) {
+        // Laravel splits `role:a,b` into separate params, so accept them variadically.
+        if (empty($roles)) {
             return $next($request);
         }
 
-        $allowed = explode(',', $roles);
-        if (! in_array($request->user()->role, $allowed, true)) {
+        if (! in_array($request->user()->role, $roles, true)) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
