@@ -18,6 +18,9 @@ class RegisterRequest extends FormRequest
         'customers', 'loans', 'expenses', 'reports', 'masters', 'settings',
         'profile', 'ledger', 'billing', 'subscription', 'tenant', 'tenants',
         'health', 'webhooks', 'support', 'help', 'about', 'pricing', 'home',
+        // app-route first segments (must match the SPA's RESERVED_SEGMENTS)
+        'forgot-password', 'change-password', 'pending-loans', 'daily-entry',
+        'day-summary',
     ];
 
     public function authorize(): bool
