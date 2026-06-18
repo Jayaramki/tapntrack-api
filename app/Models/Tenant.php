@@ -2,46 +2,46 @@
 
 namespace App\Models;
 
-use App\Models\Scopes\BelongsToTenant;
-use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[ScopedBy(BelongsToTenant::class)]
-class Book extends Model
+class Tenant extends Model
 {
     use HasUuids;
 
+    /**
+     * Fixed sentinel for the default tenant that pre-SaaS data is folded under.
+     * Mirrors the migration backfill + book sentinel pattern.
+     */
+    public const DEFAULT_TENANT_ID = '11111111-1111-1111-1111-111111111111';
+
     protected $fillable = [
-        'tenant_id',
+        'slug',
         'name',
         'owner_name',
-        'is_active',
+        'email',
+        'phone',
+        'status',
+        'trial_ends_at',
         'is_deleted',
     ];
 
     protected function casts(): array
     {
         return [
-            'is_active' => 'boolean',
+            'trial_ends_at' => 'datetime',
             'is_deleted' => 'boolean',
         ];
     }
 
-    public function tenant(): BelongsTo
+    public function books(): HasMany
     {
-        return $this->belongsTo(Tenant::class);
+        return $this->hasMany(Book::class);
     }
 
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
-    }
-
-    public function settings(): HasMany
-    {
-        return $this->hasMany(AppSetting::class);
     }
 }

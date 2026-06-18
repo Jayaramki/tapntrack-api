@@ -8,6 +8,7 @@ use App\Models\AppSetting;
 use App\Models\Book;
 use App\Models\ExpenseCategory;
 use App\Models\Line;
+use App\Models\Tenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -38,6 +39,9 @@ class BookController extends ApiController
     {
         $book = DB::transaction(function () use ($request) {
             $book = Book::create([
+                // New books belong to the creator's tenant (default tenant when
+                // created by the platform owner in the single-tenant phase).
+                'tenant_id' => $this->currentTenantId() ?? Tenant::DEFAULT_TENANT_ID,
                 'name' => $request->input('name'),
                 'owner_name' => $request->input('owner_name'),
                 'is_active' => $request->boolean('is_active', true),

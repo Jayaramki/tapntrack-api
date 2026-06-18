@@ -59,6 +59,8 @@ class UserController extends ApiController
         $last = $request->input('last_name');
 
         $user = User::create([
+            // New users inherit the creator's tenant (tenant-level identity).
+            'tenant_id' => $this->currentTenantId() ?? \App\Models\Tenant::DEFAULT_TENANT_ID,
             'name' => trim("$first $last"),
             'email' => $request->input('username').'@tapntrack.local',
             'username' => $request->input('username'),

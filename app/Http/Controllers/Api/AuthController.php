@@ -110,6 +110,8 @@ class AuthController extends ApiController
     {
         return [
             'id' => $user->id,
+            'tenant_id' => $user->tenant_id,
+            'tenant_slug' => $user->tenant?->slug,
             'book_id' => $user->book_id,
             'first_name' => $user->first_name,
             'last_name' => $user->last_name,
@@ -138,7 +140,10 @@ class AuthController extends ApiController
         ];
 
         return match ($role) {
-            'super_admin' => $all,
+            // Platform owner: every book-level power plus tenant administration.
+            'super_admin' => array_merge($all, ['manage-tenants', 'manage-billing']),
+            // Tenant owner: all book-level powers within their tenant + billing.
+            'tenant_admin' => array_merge($all, ['manage-billing']),
             'book_admin' => array_values(array_diff($all, ['manage-books'])),
             'field_agent' => ['view-loans', 'record-collection', 'view-pending-loans'],
             default => [],

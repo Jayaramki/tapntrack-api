@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Book;
+use App\Models\Scopes\BelongsToTenant;
 use Illuminate\Http\JsonResponse;
 
 class ApiController extends Controller
@@ -27,9 +29,14 @@ class ApiController extends Controller
     }
 
     /**
-     * Enforce book-level isolation. super_admin can access any book; every
-     * other role may only touch their own book. Returns an error response to
-     * short-circuit on denial, or null when access is allowed.
+     * Enforce tenant + book isolation. Layers:
+     *   - super_admin (platform owner) → any book in any tenant.
+     *   - the book must belong to the user's tenant (else 403).
+     *   - tenant_admin → any book within their tenant.
+     *   - book_admin / field_agent → only their assigned book.
+     *
+     * Returns an error response to short-circuit on denial, or null when
+     * access is allowed.
      *
      * Usage: if ($deny = $this->denyBookAccess($bookId)) return $deny;
      */
@@ -37,10 +44,37 @@ class ApiController extends Controller
     {
         $user = auth()->user();
 
-        if ($user && $user->role !== 'super_admin' && (string) $user->book_id !== $bookId) {
+        if (! $user) {
+            return null;
+        }
+
+        // Platform owner spans every tenant and book.
+        if ($user->role === 'super_admin') {
+            return null;
+        }
+
+        // The book must belong to the user's tenant. Query without the tenant
+        // scope so a cross-tenant id returns an explicit 403, not a silent miss.
+        $book = Book::withoutGlobalScope(BelongsToTenant::class)->find($bookId);
+        if (! $book || (string) $book->tenant_id !== (string) $user->tenant_id) {
+            return $this->error('Access denied to this book', [], 403);
+        }
+
+        // Within the tenant, only tenant_admin spans all books; others are
+        // pinned to their assigned book.
+        if ($user->role !== 'tenant_admin' && (string) $user->book_id !== $bookId) {
             return $this->error('Access denied to this book', [], 403);
         }
 
         return null;
+    }
+
+    /**
+     * The current authenticated user's tenant id (null for the platform owner
+     * or unauthenticated requests).
+     */
+    protected function currentTenantId(): ?string
+    {
+        return auth()->user()?->tenant_id;
     }
 }

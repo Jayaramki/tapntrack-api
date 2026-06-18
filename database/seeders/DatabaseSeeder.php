@@ -11,6 +11,7 @@ use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Line;
 use App\Models\Loan;
+use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -24,10 +25,18 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Default tenant — pre-SaaS data is folded under this one account. Fixed
+        // sentinel so a fresh seed and the migration backfill converge.
+        $tenant = Tenant::updateOrCreate(
+            ['id' => Tenant::DEFAULT_TENANT_ID],
+            ['slug' => 'balaji', 'name' => 'Balaji Finance', 'owner_name' => 'Balaji',
+             'email' => 'owner@tapntrack.in', 'status' => 'active', 'is_deleted' => false]
+        );
+
         // Fixed sentinel UUID so the frontend DEFAULT_BOOK_ID fallback resolves.
         $book = Book::updateOrCreate(
             ['id' => '00000000-0000-0000-0000-000000000001'],
-            ['name' => 'Balaji Finance', 'owner_name' => 'Balaji', 'is_active' => true, 'is_deleted' => false]
+            ['tenant_id' => $tenant->id, 'name' => 'Balaji Finance', 'owner_name' => 'Balaji', 'is_active' => true, 'is_deleted' => false]
         );
 
         foreach (['APP_NAME' => 'Balaji Finance', 'DAYS_TO_PAY' => '100', 'INTEREST_PERCENTAGE' => '10'] as $key => $value) {
@@ -44,7 +53,7 @@ class DatabaseSeeder extends Seeder
             Line::updateOrCreate(['book_id' => $book->id, 'name' => $lineName], ['color' => '#546E7A', 'is_active' => true]);
         }
 
-        $this->seedUsers($book->id);
+        $this->seedUsers($tenant->id, $book->id);
 
         // ── Customers ──────────────────────────────────────────────────────────
         $customerDefs = [
@@ -150,10 +159,13 @@ class DatabaseSeeder extends Seeder
         }
     }
 
-    private function seedUsers(string $bookId): void
+    private function seedUsers(string $tenantId, string $bookId): void
     {
+        // superadmin = platform owner (spans all tenants). tenantadmin owns this
+        // tenant's books/users/billing. bookadmin/agents are pinned to the book.
         $users = [
             ['superadmin', 'Super', 'Admin', 'super_admin', null, '9876543210', 'What is your pet name?', 'tommy'],
+            ['tenantadmin', 'Tenant', 'Admin', 'tenant_admin', null, '9876543219', 'What is your birth city?', 'chennai'],
             ['bookadmin', 'Book', 'Admin', 'book_admin', $bookId, '9876543211', 'What is your mother maiden name?', 'lakshmi'],
             ['agent', 'Field', 'Agent', 'field_agent', $bookId, '9876543212', 'What is your school name?', 'vivekananda'],
             ['agent2', 'Second', 'Agent', 'field_agent', $bookId, '9876543213', 'What is your favourite colour?', 'blue'],
@@ -161,7 +173,7 @@ class DatabaseSeeder extends Seeder
 
         foreach ($users as [$username, $first, $last, $role, $bid, $phone, $q, $a]) {
             User::updateOrCreate(
-                ['username' => $username],
+                ['tenant_id' => $tenantId, 'username' => $username],
                 [
                     'name' => "$first $last",
                     'email' => "$username@tapntrack.in",
