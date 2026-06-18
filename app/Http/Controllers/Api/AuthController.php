@@ -44,9 +44,12 @@ class AuthController extends ApiController
             ]);
             $provisioner->seedDefaults($book, appName: $data['tenant_name']);
 
+            $displayName = $data['owner_name'] ?? $data['username'];
             $user = User::create([
                 'tenant_id' => $tenant->id,
-                'name' => $data['username'],
+                'name' => $displayName,
+                'first_name' => $displayName,
+                'last_name' => '',
                 'email' => $data['username'].'@'.$data['slug'].'.tapntrack.local',
                 'username' => $data['username'],
                 'password' => $data['password'],
