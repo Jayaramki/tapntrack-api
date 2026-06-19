@@ -67,11 +67,11 @@ deployment:
     - echo "[9] Clearing caches" >> $LOGFILE
     - php artisan optimize:clear >> $LOGFILE 2>&1
 
-    # [10] Migrate (idempotent — only applies pending migrations)
-    # NOTE: the one-time `migrate:fresh` reseed already ran on the server; back
-    # to plain migrate so deploys never wipe the database.
-    - echo "[10] Running migrations" >> $LOGFILE
-    - php artisan migrate --force >> $LOGFILE 2>&1
+    # [10] ONE-TIME migrate:fresh — wipes + rebuilds the schema, then [11] reseeds.
+    # Dev only (no real data). REVERT to `php artisan migrate --force` right after
+    # this deploy so future deploys never wipe the database.
+    - echo "[10] Running migrations (FRESH)" >> $LOGFILE
+    - php artisan migrate:fresh --force >> $LOGFILE 2>&1
 
     # [11] Seed (idempotent — seeder uses updateOrCreate)
     - echo "[11] Seeding users" >> $LOGFILE
