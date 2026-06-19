@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Book;
 use App\Models\Loan;
+use App\Models\Plan;
 use App\Models\Scopes\BelongsToTenant;
 use App\Models\Tenant;
 use App\Models\User;
@@ -16,17 +17,33 @@ use App\Models\User;
  */
 class PlanGate
 {
-    /** Resolved limits for a tenant's plan (falls back to trial). */
+    /**
+     * Resolved limits for a tenant's plan. Reads the editable plans table (the
+     * source of truth, managed from the admin UI); falls back to config when a
+     * row is missing.
+     */
     public function limits(Tenant $tenant): array
     {
-        $plan = config('plans.'.$tenant->plan) ?? config('plans.trial');
+        $plan = Plan::find($tenant->plan);
+
+        if ($plan) {
+            return [
+                'plan' => $plan->code,
+                'label' => $plan->label,
+                'max_active_loans' => $plan->max_active_loans,
+                'max_users' => $plan->max_users,
+                'max_books' => $plan->max_books,
+            ];
+        }
+
+        $cfg = config('plans.'.$tenant->plan) ?? config('plans.trial');
 
         return [
             'plan' => $tenant->plan,
-            'label' => $plan['label'] ?? ucfirst((string) $tenant->plan),
-            'max_active_loans' => $plan['max_active_loans'],
-            'max_users' => $plan['max_users'],
-            'max_books' => $plan['max_books'],
+            'label' => $cfg['label'] ?? ucfirst((string) $tenant->plan),
+            'max_active_loans' => $cfg['max_active_loans'],
+            'max_users' => $cfg['max_users'],
+            'max_books' => $cfg['max_books'],
         ];
     }
 

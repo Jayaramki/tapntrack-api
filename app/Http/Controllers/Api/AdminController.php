@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\Book;
 use App\Models\ImpersonationLog;
 use App\Models\Loan;
+use App\Models\Plan;
 use App\Models\Scopes\BelongsToTenant;
 use App\Models\Tenant;
 use App\Models\User;
@@ -80,7 +81,7 @@ class AdminController extends ApiController
     public function updatePlan(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
-            'plan' => ['required', 'in:'.implode(',', array_keys(config('plans')))],
+            'plan' => ['required', 'exists:plans,code'],
         ]);
 
         $tenant = Tenant::where('is_deleted', false)->find($id);
@@ -95,6 +96,32 @@ class AdminController extends ApiController
         ]);
 
         return $this->success($this->present($tenant), 'Tenant plan updated');
+    }
+
+    /** All subscription plans (tiers) with their editable limits. */
+    public function plans(): JsonResponse
+    {
+        return $this->success(Plan::orderBy('sort_order')->get());
+    }
+
+    /** Edit a plan tier's label / limits (null limit = unlimited). */
+    public function updatePlanLimits(Request $request, string $code): JsonResponse
+    {
+        $plan = Plan::find($code);
+        if (! $plan) {
+            return $this->error('Plan not found', [], 404);
+        }
+
+        $data = $request->validate([
+            'label' => ['required', 'string', 'max:50'],
+            'max_active_loans' => ['present', 'nullable', 'integer', 'min:0'],
+            'max_users' => ['present', 'nullable', 'integer', 'min:1'],
+            'max_books' => ['present', 'nullable', 'integer', 'min:1'],
+        ]);
+
+        $plan->update($data);
+
+        return $this->success($plan, 'Plan updated');
     }
 
     /**

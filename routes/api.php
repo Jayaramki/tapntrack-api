@@ -100,6 +100,8 @@ Route::prefix('v1')->group(function () {
         Route::patch('tenants/{id}/plan', [AdminController::class, 'updatePlan']);
         Route::post('tenants/{id}/impersonate', [AdminController::class, 'impersonate']);
         Route::post('stop-impersonate', [AdminController::class, 'stopImpersonate']);
+        Route::get('plans', [AdminController::class, 'plans']);
+        Route::patch('plans/{code}', [AdminController::class, 'updatePlanLimits']);
     });
 
     Route::middleware(['auth:api', 'tenant', 'active', 'role:super_admin,tenant_admin'])->group(function () {

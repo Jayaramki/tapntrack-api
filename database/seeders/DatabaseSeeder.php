@@ -11,6 +11,7 @@ use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Line;
 use App\Models\Loan;
+use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -25,6 +26,19 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Subscription plans — insert-only from config so editing limits via the
+        // admin UI is never overwritten by a redeploy's db:seed.
+        $order = 0;
+        foreach ((array) config('plans') as $code => $p) {
+            Plan::firstOrCreate(['code' => $code], [
+                'label' => $p['label'] ?? ucfirst((string) $code),
+                'max_active_loans' => $p['max_active_loans'] ?? null,
+                'max_users' => $p['max_users'] ?? null,
+                'max_books' => $p['max_books'] ?? null,
+                'sort_order' => $order++,
+            ]);
+        }
+
         // Default tenant — pre-SaaS data is folded under this one account. Fixed
         // sentinel so a fresh seed and the migration backfill converge.
         $tenant = Tenant::updateOrCreate(
