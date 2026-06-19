@@ -121,6 +121,9 @@ class LoanController extends ApiController
         if ($deny = $this->denyBookAccess((string) $request->input('book_id'))) {
             return $deny;
         }
+        if ($deny = $this->denyPlanLimit('loan')) {
+            return $deny;
+        }
 
         $loan = Loan::create([
             'book_id' => $request->input('book_id'),

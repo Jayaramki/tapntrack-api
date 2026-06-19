@@ -30,7 +30,7 @@ class DatabaseSeeder extends Seeder
         $tenant = Tenant::updateOrCreate(
             ['id' => Tenant::DEFAULT_TENANT_ID],
             ['slug' => 'balaji', 'name' => 'Balaji Finance', 'owner_name' => 'Balaji',
-             'email' => 'owner@tapntrack.in', 'status' => 'active', 'is_deleted' => false]
+             'email' => 'owner@tapntrack.in', 'status' => 'active', 'plan' => 'premium', 'is_deleted' => false]
         );
 
         // Fixed sentinel UUID so the frontend DEFAULT_BOOK_ID fallback resolves.

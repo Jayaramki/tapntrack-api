@@ -23,6 +23,7 @@ class Tenant extends Model
         'email',
         'phone',
         'status',
+        'plan',
         'trial_ends_at',
         'is_deleted',
     ];

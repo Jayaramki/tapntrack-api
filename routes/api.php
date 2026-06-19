@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\LedgerController;
 use App\Http\Controllers\Api\LineController;
 use App\Http\Controllers\Api\LoanController;
+use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\AppSettingController;
@@ -33,7 +34,7 @@ Route::prefix('v1')->group(function () {
         });
     });
 
-    Route::middleware(['auth:api', 'tenant'])->group(function () {
+    Route::middleware(['auth:api', 'tenant', 'active'])->group(function () {
         Route::get('users', [UserController::class, 'index']);
         Route::post('users', [UserController::class, 'store']);
         Route::get('users/{id}', [UserController::class, 'show']);
@@ -87,6 +88,7 @@ Route::prefix('v1')->group(function () {
         Route::get('reports/loans', [ReportsController::class, 'loans']);
         Route::get('settings', [AppSettingController::class, 'index']);
         Route::put('settings', [AppSettingController::class, 'update']);
+        Route::get('subscription', [PlanController::class, 'show']);
     });
 
     // Platform-admin console (super_admin only): tenant metadata + impersonation.
@@ -94,11 +96,12 @@ Route::prefix('v1')->group(function () {
         Route::get('tenants', [AdminController::class, 'tenants']);
         Route::get('tenants/{id}', [AdminController::class, 'showTenant']);
         Route::patch('tenants/{id}/status', [AdminController::class, 'updateStatus']);
+        Route::patch('tenants/{id}/plan', [AdminController::class, 'updatePlan']);
         Route::post('tenants/{id}/impersonate', [AdminController::class, 'impersonate']);
         Route::post('stop-impersonate', [AdminController::class, 'stopImpersonate']);
     });
 
-    Route::middleware(['auth:api', 'tenant', 'role:super_admin,tenant_admin'])->group(function () {
+    Route::middleware(['auth:api', 'tenant', 'active', 'role:super_admin,tenant_admin'])->group(function () {
         Route::get('books', [BookController::class, 'index']);
         Route::post('books', [BookController::class, 'store']);
         Route::get('books/{id}', [BookController::class, 'show']);

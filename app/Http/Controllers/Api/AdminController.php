@@ -77,6 +77,26 @@ class AdminController extends ApiController
         return $this->success($this->present($tenant), 'Tenant status updated');
     }
 
+    public function updatePlan(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'plan' => ['required', 'in:'.implode(',', array_keys(config('plans')))],
+        ]);
+
+        $tenant = Tenant::where('is_deleted', false)->find($id);
+        if (! $tenant) {
+            return $this->error('Tenant not found', [], 404);
+        }
+
+        // Assigning a paid plan implies the account is active.
+        $tenant->update([
+            'plan' => $data['plan'],
+            'status' => $data['plan'] === 'trial' ? $tenant->status : 'active',
+        ]);
+
+        return $this->success($this->present($tenant), 'Tenant plan updated');
+    }
+
     /**
      * Record an audited impersonation. Returns the slug the SPA should send as
      * X-Impersonate-Tenant to act as this tenant.
@@ -129,6 +149,8 @@ class AdminController extends ApiController
             'email' => $tenant->email,
             'phone' => $tenant->phone,
             'status' => $tenant->status,
+            'plan' => $tenant->plan,
+            'plan_label' => config('plans.'.$tenant->plan.'.label', ucfirst((string) $tenant->plan)),
             'trial_ends_at' => $tenant->trial_ends_at,
             'created_at' => $tenant->created_at,
             'books_count' => (int) ($bookCounts[$tenant->id] ?? Book::withoutGlobalScope(BelongsToTenant::class)->where('tenant_id', $tenant->id)->where('is_deleted', false)->count()),

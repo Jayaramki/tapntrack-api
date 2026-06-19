@@ -35,6 +35,10 @@ class BookController extends ApiController
 
     public function store(StoreBookRequest $request, BookProvisioner $provisioner): JsonResponse
     {
+        if ($deny = $this->denyPlanLimit('book')) {
+            return $deny;
+        }
+
         $book = DB::transaction(function () use ($request, $provisioner) {
             $book = Book::create([
                 // New books belong to the creator's tenant (default tenant when

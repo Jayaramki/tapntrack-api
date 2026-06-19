@@ -54,6 +54,9 @@ class UserController extends ApiController
         if ($deny = $this->denyUserManagement($request->input('role'), $request->input('book_id'))) {
             return $deny;
         }
+        if ($deny = $this->denyPlanLimit('user')) {
+            return $deny;
+        }
 
         $first = $request->input('first_name');
         $last = $request->input('last_name');

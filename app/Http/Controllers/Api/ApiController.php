@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Book;
 use App\Models\Scopes\BelongsToTenant;
+use App\Models\Tenant;
+use App\Services\PlanGate;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 
@@ -82,5 +84,46 @@ class ApiController extends Controller
     protected function currentTenantId(): ?string
     {
         return app(TenantContext::class)->effectiveTenantId();
+    }
+
+    /**
+     * Enforce the effective tenant's plan limit for a resource ('loan' | 'user'
+     * | 'book'). Returns a 402 upgrade_required response when over the limit, or
+     * null when the create is allowed.
+     *
+     * Usage: if ($deny = $this->denyPlanLimit('loan')) return $deny;
+     */
+    protected function denyPlanLimit(string $resource): ?JsonResponse
+    {
+        $tenantId = $this->currentTenantId();
+        if ($tenantId === null) {
+            return null;
+        }
+
+        $tenant = Tenant::find($tenantId);
+        if (! $tenant) {
+            return null;
+        }
+
+        $gate = app(PlanGate::class);
+        $allowed = match ($resource) {
+            'loan' => $gate->canAddLoan($tenant),
+            'user' => $gate->canAddUser($tenant),
+            'book' => $gate->canAddBook($tenant),
+            default => true,
+        };
+
+        if ($allowed) {
+            return null;
+        }
+
+        $limits = $gate->limits($tenant);
+        $plural = $resource.'s';
+
+        return $this->error(
+            "You've reached your {$limits['label']} plan limit for {$plural}. Upgrade to add more.",
+            ['code' => 'upgrade_required', 'resource' => $resource, 'plan' => $limits['plan']],
+            402
+        );
     }
 }
