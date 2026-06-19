@@ -14,6 +14,9 @@ class AppSettingController extends ApiController
         $data = $request->validate([
             'book_id' => ['required', 'uuid', 'exists:books,id'],
         ]);
+        if ($deny = $this->denyBookAccess($data['book_id'])) {
+            return $deny;
+        }
 
         $settings = AppSetting::where('book_id', $data['book_id'])
             ->orderBy('key')
@@ -24,6 +27,10 @@ class AppSettingController extends ApiController
 
     public function update(UpdateSettingRequest $request): JsonResponse
     {
+        if ($deny = $this->denyBookAccess((string) $request->input('book_id'))) {
+            return $deny;
+        }
+
         $setting = AppSetting::updateOrCreate(
             [
                 'book_id' => $request->input('book_id'),
