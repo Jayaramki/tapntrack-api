@@ -39,7 +39,10 @@ class DatabaseSeeder extends Seeder
             ['tenant_id' => $tenant->id, 'name' => 'Balaji Finance', 'owner_name' => 'Balaji', 'is_active' => true, 'is_deleted' => false]
         );
 
-        foreach (['APP_NAME' => 'Balaji Finance', 'DAYS_TO_PAY' => '100', 'INTEREST_PERCENTAGE' => '10'] as $key => $value) {
+        foreach ([
+            'APP_NAME' => 'Balaji Finance', 'DAYS_TO_PAY' => '100', 'INTEREST_PERCENTAGE' => '10',
+            'LOAN_NUMBER_MODE' => 'manual', 'LOAN_NUMBER_RESET' => 'yearly', 'LOAN_NUMBER_PREFIX' => 'BF-',
+        ] as $key => $value) {
             AppSetting::updateOrCreate(['book_id' => $book->id, 'key' => $key], ['value' => $value]);
         }
 

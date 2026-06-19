@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreLoanRequest;
 use App\Http\Requests\UpdateLoanRequest;
+use App\Models\AppSetting;
 use App\Models\ArchivedLoan;
 use App\Models\Loan;
 use Illuminate\Http\JsonResponse;
@@ -114,6 +115,51 @@ class LoanController extends ApiController
         }
 
         return $this->success($this->present($loan));
+    }
+
+    /**
+     * Suggest the next auto loan number for a book, collision-safe (scans active
+     * + soft-deleted + archived loans so no number is ever reused). Format from
+     * the book's settings: {PREFIX}{YY}-{NNN} with yearly reset, or {PREFIX}{NNN}
+     * with no reset. Returns the mode too so the SPA only prefills when 'auto'.
+     */
+    public function nextNumber(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'book_id' => ['required', 'uuid', 'exists:books,id'],
+            'date' => ['nullable', 'date'],
+        ]);
+        if ($deny = $this->denyBookAccess($data['book_id'])) {
+            return $deny;
+        }
+
+        $bookId = $data['book_id'];
+        $settings = AppSetting::where('book_id', $bookId)->pluck('value', 'key');
+        $mode = $settings['LOAN_NUMBER_MODE'] ?? 'manual';
+        $reset = $settings['LOAN_NUMBER_RESET'] ?? 'yearly';
+        $prefix = (string) ($settings['LOAN_NUMBER_PREFIX'] ?? '');
+
+        $year = isset($data['date']) ? Carbon::parse($data['date'])->year : now()->year;
+        $stub = $reset === 'yearly' ? $prefix.substr((string) $year, -2).'-' : $prefix;
+
+        $existing = Loan::where('book_id', $bookId)->pluck('loan_number')
+            ->merge(ArchivedLoan::where('book_id', $bookId)->pluck('loan_number'));
+
+        $max = 0;
+        foreach ($existing as $num) {
+            $num = (string) $num;
+            if ($stub !== '' && ! str_starts_with($num, $stub)) {
+                continue;
+            }
+            $suffix = $stub === '' ? $num : substr($num, strlen($stub));
+            if (preg_match('/^(\d+)/', $suffix, $m)) {
+                $max = max($max, (int) $m[1]);
+            }
+        }
+
+        $next = $stub.str_pad((string) ($max + 1), 3, '0', STR_PAD_LEFT);
+
+        return $this->success(['mode' => $mode, 'reset' => $reset, 'prefix' => $prefix, 'next_number' => $next]);
     }
 
     public function store(StoreLoanRequest $request): JsonResponse

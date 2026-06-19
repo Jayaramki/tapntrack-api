@@ -21,6 +21,9 @@ class BookProvisioner
             'APP_NAME' => $appName ?: 'TapNTrack',
             'DAYS_TO_PAY' => '120',
             'INTEREST_PERCENTAGE' => '20',
+            'LOAN_NUMBER_MODE' => 'manual',   // manual | auto
+            'LOAN_NUMBER_RESET' => 'yearly',  // yearly | never
+            'LOAN_NUMBER_PREFIX' => '',
         ];
         foreach ($settings as $key => $value) {
             AppSetting::create([

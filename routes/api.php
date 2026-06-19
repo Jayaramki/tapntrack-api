@@ -66,6 +66,7 @@ Route::prefix('v1')->group(function () {
         Route::get('loans/deleted', [LoanController::class, 'deleted']);
         Route::get('loans/archived', [LoanController::class, 'archived']);
         Route::get('loans/pending', [LoanController::class, 'pending']);
+        Route::get('loans/next-number', [LoanController::class, 'nextNumber']);
         Route::get('loans/{id}', [LoanController::class, 'show']);
         Route::post('loans', [LoanController::class, 'store']);
         Route::put('loans/{id}', [LoanController::class, 'update']);

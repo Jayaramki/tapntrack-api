@@ -37,7 +37,7 @@ class AppSettingController extends ApiController
                 'key' => $request->input('key'),
             ],
             [
-                'value' => $request->input('value'),
+                'value' => (string) $request->input('value'),
                 'updated_by' => auth()->id(),
             ]
         );
