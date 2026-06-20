@@ -12,6 +12,7 @@ class Customer extends Model
 
     protected $fillable = [
         'book_id',
+        'customer_number',
         'name',
         'father_name',
         'phone',
@@ -24,6 +25,7 @@ class Customer extends Model
     {
         return [
             'is_active' => 'boolean',
+            'customer_number' => 'integer',
         ];
     }
 

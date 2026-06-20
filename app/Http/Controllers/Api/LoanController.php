@@ -26,12 +26,13 @@ class LoanController extends ApiController
             return $deny;
         }
 
+        $hide = $this->hideBalanceFor($bookId);
         $loans = Loan::with('customer:id,name')
             ->where('book_id', $bookId)
             ->where('is_deleted', false)
             ->orderByDesc('issued_date')
             ->get()
-            ->map(fn (Loan $l) => $this->present($l));
+            ->map(fn (Loan $l) => $this->present($l, $hide));
 
         return $this->success($loans);
     }
@@ -82,16 +83,17 @@ class LoanController extends ApiController
             return $deny;
         }
 
+        $hide = $this->hideBalanceFor($bookId);
         $loans = Loan::with('customer:id,name')
             ->where('book_id', $bookId)
             ->where('is_deleted', false)
             ->whereNull('completed_date')
             ->orderByDesc('issued_date')
             ->get()
-            ->map(function (Loan $l) {
+            ->map(function (Loan $l) use ($hide) {
                 $days = $this->pendingDays($l);
 
-                return $this->present($l) + [
+                return $this->present($l, $hide) + [
                     'act_pending_days' => $days,
                     'is_overdue' => $days > (self::OVERDUE_DAYS[$l->loan_type] ?? PHP_INT_MAX),
                 ];
@@ -114,7 +116,7 @@ class LoanController extends ApiController
             return $deny;
         }
 
-        return $this->success($this->present($loan));
+        return $this->success($this->present($loan, $this->hideBalanceFor((string) $loan->book_id)));
     }
 
     /**
@@ -371,13 +373,13 @@ class LoanController extends ApiController
     }
 
     /** Shape a loan for the API: numeric money fields + computed columns. */
-    private function present(Loan $loan): array
+    private function present(Loan $loan, bool $hideBalance = false): array
     {
         $amount = (float) $loan->loan_amount;
         $interest = (float) $loan->interest_amount;
         $collected = (float) $loan->total_collected;
 
-        return [
+        $data = [
             'id' => $loan->id,
             'book_id' => (string) $loan->book_id,
             'customer_id' => (string) $loan->customer_id,
@@ -396,6 +398,13 @@ class LoanController extends ApiController
             // Interest is withheld upfront; the customer repays loan_amount in full.
             'remaining_balance' => round($amount - $collected, 2),
         ];
+
+        // Hide balances from field agents when the book setting is off.
+        if ($hideBalance) {
+            unset($data['total_collected'], $data['remaining_balance']);
+        }
+
+        return $data;
     }
 
     /** Shape an archived loan (no is_deleted; adds archived_at). */

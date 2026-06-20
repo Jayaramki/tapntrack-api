@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
 use App\Models\Book;
 use App\Models\Scopes\BelongsToTenant;
 use App\Models\Tenant;
@@ -84,6 +85,25 @@ class ApiController extends Controller
     protected function currentTenantId(): ?string
     {
         return app(TenantContext::class)->effectiveTenantId();
+    }
+
+    /**
+     * Should loan balances (remaining / collected) be hidden from the current
+     * user for this book? True only for a field_agent when the book's
+     * AGENT_SHOW_BALANCE setting is off. Admins always see balances.
+     */
+    protected function hideBalanceFor(string $bookId): bool
+    {
+        $user = auth()->user();
+        if (! $user || $user->role !== 'field_agent') {
+            return false;
+        }
+
+        $show = AppSetting::where('book_id', $bookId)
+            ->where('key', 'AGENT_SHOW_BALANCE')->value('value');
+
+        // Default (unset / 'true') = show; only an explicit off hides.
+        return $show === 'false' || $show === '0';
     }
 
     /**

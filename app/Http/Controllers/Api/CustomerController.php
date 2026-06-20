@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Requests\StoreCustomerRequest;
 use App\Http\Requests\UpdateCustomerRequest;
 use App\Models\Customer;
+use App\Models\DailyEntry;
+use App\Models\Loan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -35,6 +37,75 @@ class CustomerController extends ApiController
         return $this->success($customers);
     }
 
+    /**
+     * GET /customers/lookup?book_id=&number= — quick-collection lookup. Returns
+     * the customer plus their ACTIVE loans (brief) with today's entry per loan.
+     * Balances are stripped for field agents when AGENT_SHOW_BALANCE is off.
+     */
+    public function lookup(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'book_id' => ['required', 'uuid', 'exists:books,id'],
+            'number' => ['required', 'integer', 'min:1'],
+        ]);
+
+        if ($deny = $this->denyBookAccess((string) $data['book_id'])) {
+            return $deny;
+        }
+
+        $customer = Customer::where('book_id', $data['book_id'])
+            ->where('customer_number', $data['number'])
+            ->first();
+
+        if (! $customer) {
+            return $this->error('No customer found with that number', [], 404);
+        }
+
+        $hide = $this->hideBalanceFor((string) $data['book_id']);
+        $today = now()->toDateString();
+
+        $loans = Loan::where('book_id', $data['book_id'])
+            ->where('customer_id', $customer->id)
+            ->where('is_deleted', false)
+            ->whereNull('completed_date')
+            ->orderBy('loan_number')
+            ->get()
+            ->map(function (Loan $l) use ($hide, $today) {
+                $amount = (float) $l->loan_amount;
+                $collected = (float) $l->total_collected;
+                $entry = DailyEntry::where('loan_id', $l->id)->where('entry_date', $today)->first();
+
+                $row = [
+                    'id' => $l->id,
+                    'loan_number' => $l->loan_number,
+                    'loan_amount' => $amount,
+                    'loan_type' => $l->loan_type,
+                    'line' => $l->line,
+                    'today_entry' => $entry
+                        ? ['id' => $entry->id, 'amount' => (float) $entry->amount, 'mode' => $entry->mode]
+                        : null,
+                ];
+                if (! $hide) {
+                    $row['total_collected'] = $collected;
+                    $row['remaining_balance'] = round($amount - $collected, 2);
+                }
+
+                return $row;
+            })
+            ->values();
+
+        return $this->success([
+            'customer' => [
+                'id' => $customer->id,
+                'customer_number' => $customer->customer_number,
+                'name' => $customer->name,
+                'phone' => $customer->phone,
+                'is_active' => (bool) $customer->is_active,
+            ],
+            'loans' => $loans,
+        ]);
+    }
+
     public function show(string $id): JsonResponse
     {
         $customer = Customer::find($id);
@@ -56,8 +127,15 @@ class CustomerController extends ApiController
             return $deny;
         }
 
+        $bookId = $request->input('book_id');
+        // Manual override if given, else the next sequential number for this book.
+        $number = $request->filled('customer_number')
+            ? (int) $request->input('customer_number')
+            : ((int) Customer::where('book_id', $bookId)->max('customer_number')) + 1;
+
         $customer = Customer::create([
-            'book_id' => $request->input('book_id'),
+            'book_id' => $bookId,
+            'customer_number' => $number,
             'name' => $request->input('name'),
             'father_name' => $request->input('father_name'),
             'phone' => $request->input('phone'),
@@ -82,7 +160,7 @@ class CustomerController extends ApiController
         }
 
         $customer->update($request->only([
-            'name', 'father_name', 'phone', 'address', 'profession', 'is_active',
+            'customer_number', 'name', 'father_name', 'phone', 'address', 'profession', 'is_active',
         ]));
 
         return $this->success($customer, 'Customer updated successfully');

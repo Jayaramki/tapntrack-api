@@ -19,6 +19,12 @@ class UpdateCustomerRequest extends FormRequest
 
         return [
             'book_id' => ['sometimes', 'required', 'uuid', 'exists:books,id'],
+            'customer_number' => [
+                'sometimes', 'nullable', 'integer', 'min:1',
+                Rule::unique('customers', 'customer_number')
+                    ->where('book_id', $bookId)
+                    ->ignore($customerId),
+            ],
             'name' => ['sometimes', 'required', 'string', 'max:150'],
             'father_name' => ['nullable', 'string', 'max:150'],
             'phone' => [

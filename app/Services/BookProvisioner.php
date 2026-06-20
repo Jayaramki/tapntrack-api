@@ -24,6 +24,7 @@ class BookProvisioner
             'LOAN_NUMBER_MODE' => 'manual',   // manual | auto
             'LOAN_NUMBER_RESET' => 'yearly',  // yearly | never
             'LOAN_NUMBER_PREFIX' => '',
+            'AGENT_SHOW_BALANCE' => 'true',   // true | false (hide balances from field agents)
         ];
         foreach ($settings as $key => $value) {
             AppSetting::create([

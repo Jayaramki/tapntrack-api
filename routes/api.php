@@ -43,6 +43,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('users/{id}', [UserController::class, 'destroy']);
 
         Route::get('customers', [CustomerController::class, 'index']);
+        Route::get('customers/lookup', [CustomerController::class, 'lookup']);
         Route::post('customers', [CustomerController::class, 'store']);
         Route::get('customers/{id}', [CustomerController::class, 'show']);
         Route::put('customers/{id}', [CustomerController::class, 'update']);

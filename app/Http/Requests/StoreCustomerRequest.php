@@ -16,6 +16,11 @@ class StoreCustomerRequest extends FormRequest
     {
         return [
             'book_id' => ['required', 'uuid', 'exists:books,id'],
+            // Optional manual override; otherwise auto-assigned per book.
+            'customer_number' => [
+                'nullable', 'integer', 'min:1',
+                Rule::unique('customers', 'customer_number')->where('book_id', $this->input('book_id')),
+            ],
             'name' => ['required', 'string', 'max:150'],
             'father_name' => ['nullable', 'string', 'max:150'],
             'phone' => [

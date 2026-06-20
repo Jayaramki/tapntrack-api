@@ -56,6 +56,7 @@ class DatabaseSeeder extends Seeder
         foreach ([
             'APP_NAME' => 'Balaji Finance', 'DAYS_TO_PAY' => '100', 'INTEREST_PERCENTAGE' => '10',
             'LOAN_NUMBER_MODE' => 'manual', 'LOAN_NUMBER_RESET' => 'yearly', 'LOAN_NUMBER_PREFIX' => 'BF-',
+            'AGENT_SHOW_BALANCE' => 'true',
         ] as $key => $value) {
             AppSetting::updateOrCreate(['book_id' => $book->id, 'key' => $key], ['value' => $value]);
         }
@@ -84,10 +85,11 @@ class DatabaseSeeder extends Seeder
             ['Devi Shankar', 'Shankar', '9000000008', '14 Market St, Erode', 'Provision Store'],
         ];
         $customers = [];
+        $custNo = 1;
         foreach ($customerDefs as [$name, $father, $phone, $address, $profession]) {
             $customers[$phone] = Customer::updateOrCreate(
                 ['book_id' => $book->id, 'phone' => $phone],
-                ['name' => $name, 'father_name' => $father, 'address' => $address, 'profession' => $profession, 'is_active' => true]
+                ['customer_number' => $custNo++, 'name' => $name, 'father_name' => $father, 'address' => $address, 'profession' => $profession, 'is_active' => true]
             );
         }
 

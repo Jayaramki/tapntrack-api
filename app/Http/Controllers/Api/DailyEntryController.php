@@ -104,6 +104,12 @@ class DailyEntryController extends ApiController
             return $deny;
         }
 
+        // Edit lock: a field agent may record a collection but never overwrite one.
+        if ($this->isFieldAgent() && DailyEntry::where('loan_id', $request->input('loan_id'))
+            ->where('entry_date', $request->input('entry_date'))->exists()) {
+            return $this->error('A collection is already recorded for this loan today — ask an admin to change it.', ['code' => 'entry_locked'], 403);
+        }
+
         $entry = DB::transaction(function () use ($request) {
             $entry = DailyEntry::updateOrCreate(
                 ['loan_id' => $request->input('loan_id'), 'entry_date' => $request->input('entry_date')],
@@ -133,9 +139,15 @@ class DailyEntryController extends ApiController
         $bookId = $request->input('book_id');
         $date = $request->input('entry_date');
 
-        $entries = DB::transaction(function () use ($request, $bookId, $date) {
+        $isAgent = $this->isFieldAgent();
+        $entries = DB::transaction(function () use ($request, $bookId, $date, $isAgent) {
             $saved = collect();
             foreach ($request->input('entries') as $item) {
+                // Edit lock: agents never overwrite an existing entry.
+                if ($isAgent && DailyEntry::where('loan_id', $item['loan_id'])
+                    ->where('entry_date', $date)->exists()) {
+                    continue;
+                }
                 $saved->push(DailyEntry::updateOrCreate(
                     ['loan_id' => $item['loan_id'], 'entry_date' => $date],
                     ['book_id' => $bookId, 'amount' => $item['amount'], 'mode' => $item['mode']],
@@ -164,6 +176,9 @@ class DailyEntryController extends ApiController
         if ($deny = $this->denyBookAccess((string) $entry->book_id)) {
             return $deny;
         }
+        if ($this->isFieldAgent()) {
+            return $this->error('Field agents cannot edit a saved collection.', ['code' => 'entry_locked'], 403);
+        }
 
         DB::transaction(function () use ($entry, $request) {
             $entry->update($request->only(['amount', 'mode']));
@@ -185,6 +200,9 @@ class DailyEntryController extends ApiController
         if ($deny = $this->denyBookAccess((string) $entry->book_id)) {
             return $deny;
         }
+        if ($this->isFieldAgent()) {
+            return $this->error('Field agents cannot delete a saved collection.', ['code' => 'entry_locked'], 403);
+        }
 
         DB::transaction(function () use ($entry) {
             $loanId = $entry->loan_id;
@@ -193,6 +211,11 @@ class DailyEntryController extends ApiController
         });
 
         return $this->success(null, 'Entry deleted');
+    }
+
+    private function isFieldAgent(): bool
+    {
+        return auth()->user()?->role === 'field_agent';
     }
 
     /** Keep loans.total_collected in sync with the sum of its daily entries. */
