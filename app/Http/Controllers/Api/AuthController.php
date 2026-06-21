@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\RegisterRequest;
+use App\Models\AppSetting;
 use App\Models\Book;
 use App\Models\Tenant;
 use App\Models\User;
@@ -205,9 +206,27 @@ class AuthController extends ApiController
             'role' => $user->role,
             'phone' => $user->phone,
             'is_active' => $user->is_active,
+            'hide_balance' => $this->agentBalanceHidden($user),
             'permissions' => $user->permissions ?: $this->permissionsForRole($user->role),
             'token' => $includeToken ? $user->api_token : ($user->api_token ?? null),
         ];
+    }
+
+    /**
+     * Whether this user must NOT see loan balances: a field_agent whose book has
+     * AGENT_SHOW_BALANCE off. The API also strips balances server-side; this flag
+     * just lets the SPA hide the column/fields cleanly.
+     */
+    private function agentBalanceHidden(User $user): bool
+    {
+        if ($user->role !== 'field_agent' || ! $user->book_id) {
+            return false;
+        }
+
+        $show = AppSetting::where('book_id', $user->book_id)
+            ->where('key', 'AGENT_SHOW_BALANCE')->value('value');
+
+        return $show === 'false' || $show === '0';
     }
 
     /**
