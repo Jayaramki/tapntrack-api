@@ -31,7 +31,7 @@ class LedgerController extends ApiController
         $days = range(1, $daysInMonth);
 
         // Query 1: active loans for the book (+ customer name).
-        $loans = Loan::with('customer:id,name')
+        $loans = Loan::with('customer:id,name,customer_number')
             ->where('book_id', $data['book_id'])
             ->where('is_deleted', false)
             ->orderBy('loan_number')
@@ -67,6 +67,7 @@ class LedgerController extends ApiController
                 'loan_id' => (string) $loan->id,
                 'loan_number' => $loan->loan_number,
                 'customer_name' => $loan->customer?->name ?? '',
+                'customer_number' => $loan->customer?->customer_number,
                 'loan_amount' => $amount,
                 'line' => $loan->line,
                 'total_collected' => $collected,

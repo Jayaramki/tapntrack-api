@@ -24,7 +24,7 @@ class ReportsController extends ApiController
             return $deny;
         }
 
-        $entries = DailyEntry::with(['loan:id,loan_number,line,loan_type,customer_id', 'loan.customer:id,name'])
+        $entries = DailyEntry::with(['loan:id,loan_number,line,loan_type,customer_id', 'loan.customer:id,name,customer_number'])
             ->where('book_id', $data['book_id'])
             ->whereBetween('entry_date', [$data['from_date'], $data['to_date']])
             ->when(! empty($data['loan_type']), fn ($q) => $q->whereHas('loan', fn ($w) => $w->where('loan_type', $data['loan_type'])))
@@ -35,6 +35,7 @@ class ReportsController extends ApiController
                 'date' => $e->entry_date,
                 'loan_number' => $e->loan?->loan_number ?? '',
                 'customer_name' => $e->loan?->customer?->name ?? '',
+                'customer_number' => $e->loan?->customer?->customer_number,
                 'amount' => (float) $e->amount,
                 'mode' => $e->mode,
             ]);
@@ -55,7 +56,7 @@ class ReportsController extends ApiController
             return $deny;
         }
 
-        $loans = Loan::with('customer:id,name')
+        $loans = Loan::with('customer:id,name,customer_number')
             ->where('book_id', $data['book_id'])
             ->where('is_deleted', false)
             ->when(! empty($data['loan_type']), fn ($q) => $q->where('loan_type', $data['loan_type']))
@@ -69,6 +70,7 @@ class ReportsController extends ApiController
                 return [
                     'loan_number' => $l->loan_number,
                     'customer_name' => $l->customer?->name ?? '',
+                    'customer_number' => $l->customer?->customer_number,
                     'loan_amount' => $amount,
                     'total_collected' => $collected,
                     'remaining_balance' => round($amount - $collected, 2),
