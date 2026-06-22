@@ -27,7 +27,7 @@ class LoanController extends ApiController
         }
 
         $hide = $this->hideBalanceFor($bookId);
-        $loans = Loan::with('customer:id,name')
+        $loans = Loan::with('customer:id,name,customer_number')
             ->where('book_id', $bookId)
             ->where('is_deleted', false)
             ->orderByDesc('issued_date')
@@ -46,7 +46,7 @@ class LoanController extends ApiController
             return $deny;
         }
 
-        $loans = Loan::with('customer:id,name')
+        $loans = Loan::with('customer:id,name,customer_number')
             ->where('book_id', $bookId)
             ->where('is_deleted', true)
             ->orderByDesc('updated_at')
@@ -65,7 +65,7 @@ class LoanController extends ApiController
             return $deny;
         }
 
-        $loans = ArchivedLoan::with('customer:id,name')
+        $loans = ArchivedLoan::with('customer:id,name,customer_number')
             ->where('book_id', $bookId)
             ->orderByDesc('archived_at')
             ->get()
@@ -84,7 +84,7 @@ class LoanController extends ApiController
         }
 
         $hide = $this->hideBalanceFor($bookId);
-        $loans = Loan::with('customer:id,name')
+        $loans = Loan::with('customer:id,name,customer_number')
             ->where('book_id', $bookId)
             ->where('is_deleted', false)
             ->whereNull('completed_date')
@@ -106,7 +106,7 @@ class LoanController extends ApiController
 
     public function show(string $id): JsonResponse
     {
-        $loan = Loan::with('customer:id,name')->find($id);
+        $loan = Loan::with('customer:id,name,customer_number')->find($id);
 
         if (! $loan) {
             return $this->error('Loan not found', [], 404);
@@ -394,6 +394,7 @@ class LoanController extends ApiController
             'created_at' => $loan->created_at,
             'updated_at' => $loan->updated_at,
             'customer_name' => $loan->customer?->name ?? '',
+            'customer_number' => $loan->customer?->customer_number,
             'total_collected' => $collected,
             // Interest is withheld upfront; the customer repays loan_amount in full.
             'remaining_balance' => round($amount - $collected, 2),
@@ -429,6 +430,7 @@ class LoanController extends ApiController
             'created_at' => $loan->created_at,
             'updated_at' => $loan->updated_at,
             'customer_name' => $loan->customer?->name ?? '',
+            'customer_number' => $loan->customer?->customer_number,
             'total_collected' => $collected,
             // Interest is withheld upfront; the customer repays loan_amount in full.
             'remaining_balance' => round($amount - $collected, 2),
