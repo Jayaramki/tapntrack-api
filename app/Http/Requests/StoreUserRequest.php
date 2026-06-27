@@ -22,15 +22,15 @@ class StoreUserRequest extends FormRequest
                     fn ($q) => $q->where('tenant_id', $this->user()?->tenant_id)
                 ),
             ],
-            'password' => ['required', 'string', 'min:6'],
+            'password' => ['required', 'string', \App\Support\Passwords::strong()],
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
             'role' => ['required', 'in:super_admin,tenant_admin,book_admin,field_agent'],
             // Required for book-pinned roles; super_admin/tenant_admin span (null book).
             'book_id' => ['nullable', 'uuid', 'exists:books,id', 'required_unless:role,super_admin,tenant_admin'],
             'phone' => ['nullable', 'string', 'max:20'],
-            'security_question' => ['nullable', 'string', 'max:255'],
-            'security_answer' => ['nullable', 'string', 'max:255'],
+            // Optional real email so the user can self-serve email password reset.
+            'email' => ['nullable', 'email', 'max:255'],
         ];
     }
 }

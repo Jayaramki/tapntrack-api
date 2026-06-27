@@ -183,14 +183,14 @@ class DatabaseSeeder extends Seeder
         // superadmin = platform owner (spans all tenants). tenantadmin owns this
         // tenant's books/users/billing. bookadmin/agents are pinned to the book.
         $users = [
-            ['superadmin', 'Super', 'Admin', 'super_admin', null, '9876543210', 'What is your pet name?', 'tommy'],
-            ['tenantadmin', 'Tenant', 'Admin', 'tenant_admin', null, '9876543219', 'What is your birth city?', 'chennai'],
-            ['bookadmin', 'Book', 'Admin', 'book_admin', $bookId, '9876543211', 'What is your mother maiden name?', 'lakshmi'],
-            ['agent', 'Field', 'Agent', 'field_agent', $bookId, '9876543212', 'What is your school name?', 'vivekananda'],
-            ['agent2', 'Second', 'Agent', 'field_agent', $bookId, '9876543213', 'What is your favourite colour?', 'blue'],
+            ['superadmin', 'Super', 'Admin', 'super_admin', null, '9876543210'],
+            ['tenantadmin', 'Tenant', 'Admin', 'tenant_admin', null, '9876543219'],
+            ['bookadmin', 'Book', 'Admin', 'book_admin', $bookId, '9876543211'],
+            ['agent', 'Field', 'Agent', 'field_agent', $bookId, '9876543212'],
+            ['agent2', 'Second', 'Agent', 'field_agent', $bookId, '9876543213'],
         ];
 
-        foreach ($users as [$username, $first, $last, $role, $bid, $phone, $q, $a]) {
+        foreach ($users as [$username, $first, $last, $role, $bid, $phone]) {
             User::updateOrCreate(
                 ['tenant_id' => $tenantId, 'username' => $username],
                 [
@@ -198,7 +198,6 @@ class DatabaseSeeder extends Seeder
                     'email' => "$username@tapntrack.in",
                     'first_name' => $first, 'last_name' => $last,
                     'role' => $role, 'book_id' => $bid, 'phone' => $phone,
-                    'security_question' => $q, 'security_answer' => $a,
                     'password' => 'Admin@123', 'is_active' => true, 'is_deleted' => false,
                     'permissions' => null,
                 ]

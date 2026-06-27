@@ -24,8 +24,8 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('register', [AuthController::class, 'register'])->middleware('throttle:auth');
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:auth');
-        Route::get('security-question', [AuthController::class, 'getSecurityQuestion']);
         Route::post('forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:auth');
+        Route::post('reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:auth');
 
         Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
             Route::post('logout', [AuthController::class, 'logout']);

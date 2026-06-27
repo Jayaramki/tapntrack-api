@@ -14,8 +14,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['tenant_id', 'name', 'email', 'password', 'username', 'first_name', 'last_name', 'phone', 'role', 'book_id', 'is_active', 'is_deleted', 'permissions', 'security_question', 'security_answer'])]
-#[Hidden(['password', 'remember_token', 'security_answer'])]
+#[Fillable(['tenant_id', 'name', 'email', 'password', 'username', 'first_name', 'last_name', 'phone', 'role', 'book_id', 'is_active', 'is_deleted', 'permissions'])]
+#[Hidden(['password', 'remember_token'])]
 #[ScopedBy(BelongsToTenant::class)]
 class User extends Authenticatable
 {

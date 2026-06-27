@@ -74,8 +74,7 @@ class UserController extends ApiController
             'role' => $request->input('role'),
             'book_id' => in_array($request->input('role'), ['super_admin', 'tenant_admin'], true) ? null : $request->input('book_id'),
             'phone' => $request->input('phone'),
-            'security_question' => $request->input('security_question'),
-            'security_answer' => $request->input('security_answer'),
+            'email' => $request->input('email'),
             'is_active' => true,
             'is_deleted' => false,
             'permissions' => null,
@@ -102,9 +101,12 @@ class UserController extends ApiController
         }
 
         $user->fill($request->only([
-            'username', 'first_name', 'last_name', 'role', 'phone',
-            'security_question', 'security_answer',
+            'username', 'first_name', 'last_name', 'role', 'phone', 'email',
         ]));
+        // Admin-driven password reset (e.g. for field agents with no email).
+        if ($request->filled('password')) {
+            $user->password = $request->input('password');
+        }
         $user->book_id = $newBook;
         if ($request->filled('first_name') || $request->filled('last_name')) {
             $user->name = trim($user->first_name.' '.$user->last_name);

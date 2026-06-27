@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\User;
 use App\Support\TenantContext;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -38,6 +40,13 @@ class AppServiceProvider extends ServiceProvider
         // Sensible global API ceiling, keyed by the authenticated user or the IP.
         RateLimiter::for('api', function (Request $request) {
             return [Limit::perMinute(120)->by($request->user()?->id ?: $request->ip())];
+        });
+
+        // Password-reset links point at the SPA reset page, not a backend route.
+        ResetPassword::createUrlUsing(function (User $user, string $token) {
+            $base = rtrim((string) config('app.frontend_url'), '/');
+
+            return $base.'/reset-password?token='.$token.'&email='.urlencode($user->getEmailForPasswordReset());
         });
     }
 }

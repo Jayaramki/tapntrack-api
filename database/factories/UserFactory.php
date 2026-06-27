@@ -35,8 +35,6 @@ class UserFactory extends Factory
             'book_id' => null,
             'is_active' => true,
             'permissions' => [],
-            'security_question' => 'What is your favorite color?',
-            'security_answer' => 'blue',
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),

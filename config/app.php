@@ -54,6 +54,9 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // SPA origin — used to build password-reset links that point at the frontend.
+    'frontend_url' => env('FRONTEND_URL', 'https://app.tapntrack.in'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

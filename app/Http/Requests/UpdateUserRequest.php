@@ -26,8 +26,9 @@ class UpdateUserRequest extends FormRequest
             'role' => ['sometimes', 'required', 'in:super_admin,tenant_admin,book_admin,field_agent'],
             'book_id' => ['sometimes', 'nullable', 'uuid', 'exists:books,id'],
             'phone' => ['nullable', 'string', 'max:20'],
-            'security_question' => ['nullable', 'string', 'max:255'],
-            'security_answer' => ['nullable', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
+            // Optional admin-driven password reset.
+            'password' => ['sometimes', 'nullable', 'string', \App\Support\Passwords::strong()],
         ];
     }
 }

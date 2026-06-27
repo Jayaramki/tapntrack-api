@@ -8,11 +8,13 @@ use App\Models\Book;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\BookProvisioner;
+use App\Support\Passwords;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 
 class AuthController extends ApiController
 {
@@ -51,14 +53,14 @@ class AuthController extends ApiController
                 'name' => $displayName,
                 'first_name' => $displayName,
                 'last_name' => '',
-                'email' => $data['username'].'@'.$data['slug'].'.tapntrack.local',
+                // Real email when supplied (enables email password reset);
+                // otherwise a placeholder so the column stays populated.
+                'email' => $data['email'] ?? ($data['username'].'@'.$data['slug'].'.tapntrack.local'),
                 'username' => $data['username'],
                 'password' => $data['password'],
                 'role' => 'tenant_admin',
                 'book_id' => null,
                 'phone' => $data['phone'] ?? null,
-                'security_question' => $data['security_question'] ?? null,
-                'security_answer' => $data['security_answer'] ?? null,
                 'is_active' => true,
                 'is_deleted' => false,
                 'permissions' => null,
@@ -137,41 +139,53 @@ class AuthController extends ApiController
         return $this->success($this->formatUser($user), 'User loaded');
     }
 
-    public function getSecurityQuestion(Request $request): JsonResponse
-    {
-        $data = $request->validate([
-            'username' => ['required', 'string'],
-            'tenant_slug' => ['nullable', 'string'],
-        ]);
-
-        $user = $this->resolveUser($data['username'], $data['tenant_slug'] ?? null);
-
-        if (! $user) {
-            return $this->error('Username not found', [], 404);
-        }
-
-        return $this->success(['question' => $user->security_question], 'Security question loaded');
-    }
-
+    /**
+     * Email a single-use, time-limited reset link to an active account. Always
+     * returns success so the response can't be used to enumerate which emails exist.
+     */
     public function forgotPassword(Request $request): JsonResponse
     {
-        $data = $request->validate([
-            'username' => ['required', 'string'],
-            'answer' => ['required', 'string'],
-            'new_password' => ['required', 'string', 'min:6'],
-            'tenant_slug' => ['nullable', 'string'],
+        $data = $request->validate(['email' => ['required', 'email']]);
+
+        Password::sendResetLink([
+            'email' => $data['email'],
+            'is_active' => true,
+            'is_deleted' => false,
         ]);
 
-        $user = $this->resolveUser($data['username'], $data['tenant_slug'] ?? null);
+        return $this->success(null, 'If that email is registered, a reset link has been sent.');
+    }
 
-        if (! $user || ! $user->security_answer || strtolower(trim($user->security_answer)) !== strtolower(trim($data['answer']))) {
-            return $this->error('Security answer is incorrect', [], 400);
+    /** Consume the emailed token and set a new (strong) password. */
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'token' => ['required', 'string'],
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string', Passwords::strong()],
+        ]);
+
+        $status = Password::reset(
+            [
+                'email' => $data['email'],
+                'password' => $data['password'],
+                'token' => $data['token'],
+                'is_active' => true,
+                'is_deleted' => false,
+            ],
+            function (User $user, string $password) {
+                $user->password = $password; // 'hashed' cast applies
+                $user->save();
+                // Invalidate any existing sessions so a leaked session can't survive a reset.
+                DB::table('sessions')->where('user_id', $user->id)->delete();
+            }
+        );
+
+        if ($status === Password::PasswordReset) {
+            return $this->success(null, 'Your password has been reset. Please log in.');
         }
 
-        $user->password = $data['new_password'];
-        $user->save();
-
-        return $this->success(null, 'Password reset successful');
+        return $this->error('This reset link is invalid or has expired.', [], 422);
     }
 
     public function changePassword(Request $request): JsonResponse
