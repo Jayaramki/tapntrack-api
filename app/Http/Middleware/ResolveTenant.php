@@ -30,6 +30,12 @@ class ResolveTenant
             return $next($request);
         }
 
+        // Reject deactivated / soft-deleted accounts on every request — a session
+        // could still exist after an admin deactivates the user.
+        if (! $user->is_active || $user->is_deleted) {
+            return response()->json(['success' => false, 'message' => 'Account is inactive'], 401);
+        }
+
         $context = app(TenantContext::class);
 
         if ($user->role === 'super_admin') {

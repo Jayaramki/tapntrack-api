@@ -17,5 +17,7 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => false,
+    // Required for cookie-based SPA auth: the browser must send the session +
+    // XSRF cookies cross-subdomain (app. -> api.).
+    'supports_credentials' => true,
 ];

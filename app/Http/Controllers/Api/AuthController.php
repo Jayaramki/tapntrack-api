@@ -10,9 +10,9 @@ use App\Models\User;
 use App\Services\BookProvisioner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class AuthController extends ApiController
 {
@@ -64,13 +64,14 @@ class AuthController extends ApiController
                 'permissions' => null,
             ]);
 
-            $user->api_token = Str::random(80);
-            $user->save();
-
             return $user;
         });
 
-        return $this->success($this->formatUser($user, true), 'Registration successful', 201);
+        // Establish the session (SPA cookie auth).
+        Auth::guard('web')->login($user);
+        $request->session()->regenerate();
+
+        return $this->success($this->formatUser($user), 'Registration successful', 201);
     }
 
     public function login(Request $request): JsonResponse
@@ -87,10 +88,11 @@ class AuthController extends ApiController
             return $this->error('Invalid username or password', [], 401);
         }
 
-        $user->api_token = Str::random(80);
-        $user->save();
+        // Session-cookie login (Sanctum SPA); regenerate the id to prevent fixation.
+        Auth::guard('web')->login($user);
+        $request->session()->regenerate();
 
-        return $this->success($this->formatUser($user, true), 'Login successful');
+        return $this->success($this->formatUser($user), 'Login successful');
     }
 
     /**
@@ -116,12 +118,10 @@ class AuthController extends ApiController
 
     public function logout(Request $request): JsonResponse
     {
-        $user = $request->user();
-
-        if ($user) {
-            $user->api_token = null;
-            $user->save();
-        }
+        // Invalidate the session entirely (id + CSRF token) on logout.
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return $this->success(null, 'Logout successful');
     }
@@ -193,7 +193,7 @@ class AuthController extends ApiController
         return $this->success(null, 'Password changed successfully');
     }
 
-    private function formatUser(User $user, bool $includeToken = false): array
+    private function formatUser(User $user): array
     {
         return [
             'id' => $user->id,
@@ -208,7 +208,6 @@ class AuthController extends ApiController
             'is_active' => $user->is_active,
             'hide_balance' => $this->agentBalanceHidden($user),
             'permissions' => $user->permissions ?: $this->permissionsForRole($user->role),
-            'token' => $includeToken ? $user->api_token : ($user->api_token ?? null),
         ];
     }
 

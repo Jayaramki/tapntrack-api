@@ -13,9 +13,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // JSON-only API: always render JSON (no 302 redirects on validation/auth).
+        // Sanctum SPA auth: requests from SANCTUM_STATEFUL_DOMAINS authenticate via
+        // the httpOnly session cookie + CSRF instead of a bearer token.
+        $middleware->statefulApi();
+
+        // JSON-only API + security headers on every API response.
         $middleware->api(prepend: [
             App\Http\Middleware\ForceJsonResponse::class,
+            App\Http\Middleware\SecurityHeaders::class,
         ]);
 
         $middleware->alias([

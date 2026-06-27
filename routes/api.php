@@ -27,14 +27,14 @@ Route::prefix('v1')->group(function () {
         Route::get('security-question', [AuthController::class, 'getSecurityQuestion']);
         Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
 
-        Route::middleware(['auth:api', 'tenant'])->group(function () {
+        Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
             Route::post('logout', [AuthController::class, 'logout']);
             Route::get('me', [AuthController::class, 'me']);
             Route::post('change-password', [AuthController::class, 'changePassword']);
         });
     });
 
-    Route::middleware(['auth:api', 'tenant', 'active'])->group(function () {
+    Route::middleware(['auth:sanctum', 'tenant', 'active'])->group(function () {
         Route::get('users', [UserController::class, 'index']);
         Route::post('users', [UserController::class, 'store']);
         Route::get('users/{id}', [UserController::class, 'show']);
@@ -94,7 +94,7 @@ Route::prefix('v1')->group(function () {
     });
 
     // Platform-admin console (super_admin only): tenant metadata + impersonation.
-    Route::middleware(['auth:api', 'tenant', 'role:super_admin'])->prefix('admin')->group(function () {
+    Route::middleware(['auth:sanctum', 'tenant', 'role:super_admin'])->prefix('admin')->group(function () {
         Route::get('tenants', [AdminController::class, 'tenants']);
         Route::get('tenants/{id}', [AdminController::class, 'showTenant']);
         Route::patch('tenants/{id}/status', [AdminController::class, 'updateStatus']);
@@ -105,7 +105,7 @@ Route::prefix('v1')->group(function () {
         Route::patch('plans/{code}', [AdminController::class, 'updatePlanLimits']);
     });
 
-    Route::middleware(['auth:api', 'tenant', 'active', 'role:super_admin,tenant_admin'])->group(function () {
+    Route::middleware(['auth:sanctum', 'tenant', 'active', 'role:super_admin,tenant_admin'])->group(function () {
         Route::get('books', [BookController::class, 'index']);
         Route::post('books', [BookController::class, 'store']);
         Route::get('books/{id}', [BookController::class, 'show']);

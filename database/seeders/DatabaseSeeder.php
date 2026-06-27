@@ -200,7 +200,7 @@ class DatabaseSeeder extends Seeder
                     'role' => $role, 'book_id' => $bid, 'phone' => $phone,
                     'security_question' => $q, 'security_answer' => $a,
                     'password' => 'Admin@123', 'is_active' => true, 'is_deleted' => false,
-                    'permissions' => null, 'api_token' => null,
+                    'permissions' => null,
                 ]
             );
         }

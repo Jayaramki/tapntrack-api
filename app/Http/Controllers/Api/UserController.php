@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class UserController extends ApiController
 {
@@ -144,7 +145,9 @@ class UserController extends ApiController
             return $this->error('You cannot delete your own account', [], 422);
         }
 
-        $user->update(['is_deleted' => true, 'api_token' => null]);
+        $user->update(['is_deleted' => true, 'is_active' => false]);
+        // Force-logout: drop any active sessions for this user (DB session driver).
+        DB::table('sessions')->where('user_id', $user->id)->delete();
 
         return $this->success(null, 'User deleted successfully');
     }
