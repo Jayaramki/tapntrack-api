@@ -178,7 +178,7 @@ class AuthController extends ApiController
     {
         $data = $request->validate([
             'current_password' => ['required', 'string'],
-            'new_password' => ['required', 'string', 'min:6'],
+            'new_password' => ['required', 'string', \App\Support\Passwords::strong()],
         ]);
 
         $user = $request->user();

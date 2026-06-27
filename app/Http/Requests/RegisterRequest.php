@@ -53,7 +53,7 @@ class RegisterRequest extends FormRequest
 
             // First tenant_admin user
             'username' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z0-9_.]+$/'],
-            'password' => ['required', 'string', 'min:6'],
+            'password' => ['required', 'string', \App\Support\Passwords::strong()],
             'security_question' => ['nullable', 'string', 'max:255'],
             'security_answer' => ['nullable', 'string', 'max:255'],
         ];
