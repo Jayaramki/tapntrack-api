@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 
 class AuthController extends ApiController
@@ -87,12 +88,20 @@ class AuthController extends ApiController
         $user = $this->resolveUser($data['username'], $data['tenant_slug'] ?? null);
 
         if (! $user || ! Hash::check($data['password'], $user->password) || ! $user->is_active) {
+            Log::warning('auth.login_failed', [
+                'username' => $data['username'],
+                'tenant' => $data['tenant_slug'] ?? null,
+                'ip' => $request->ip(),
+            ]);
+
             return $this->error('Invalid username or password', [], 401);
         }
 
         // Session-cookie login (Sanctum SPA); regenerate the id to prevent fixation.
         Auth::guard('web')->login($user);
         $request->session()->regenerate();
+
+        Log::info('auth.login_success', ['user_id' => $user->id, 'username' => $user->username, 'ip' => $request->ip()]);
 
         return $this->success($this->formatUser($user), 'Login successful');
     }
@@ -146,6 +155,8 @@ class AuthController extends ApiController
     public function forgotPassword(Request $request): JsonResponse
     {
         $data = $request->validate(['email' => ['required', 'email']]);
+
+        Log::info('auth.password_reset_requested', ['email' => $data['email'], 'ip' => $request->ip()]);
 
         Password::sendResetLink([
             'email' => $data['email'],
