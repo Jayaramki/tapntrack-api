@@ -204,6 +204,7 @@ class UserController extends ApiController
             'username' => $user->username,
             'role' => $user->role,
             'phone' => $user->phone,
+            'email' => $user->email,
             'is_active' => (bool) $user->is_active,
         ];
     }
