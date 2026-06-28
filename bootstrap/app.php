@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => App\Http\Middleware\CheckRole::class,
             'tenant' => App\Http\Middleware\ResolveTenant::class,
             'active' => App\Http\Middleware\EnsureTenantActive::class,
+            'session.timeout' => App\Http\Middleware\EnforceSessionTimeout::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -8,6 +8,7 @@ use App\Models\Book;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\BookProvisioner;
+use App\Support\DeviceParser;
 use App\Support\Passwords;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -73,8 +74,13 @@ class AuthController extends ApiController
         // Establish the session (SPA cookie auth).
         Auth::guard('web')->login($user);
         $request->session()->regenerate();
+        $this->stampSession($request);
 
-        return $this->success($this->formatUser($user), 'Registration successful', 201);
+        return $this->success(
+            array_merge($this->formatUser($user), $this->sessionMeta($request)),
+            'Registration successful',
+            201
+        );
     }
 
     public function login(Request $request): JsonResponse
@@ -100,10 +106,14 @@ class AuthController extends ApiController
         // Session-cookie login (Sanctum SPA); regenerate the id to prevent fixation.
         Auth::guard('web')->login($user);
         $request->session()->regenerate();
+        $this->stampSession($request);
 
         Log::info('auth.login_success', ['user_id' => $user->id, 'username' => $user->username, 'ip' => $request->ip()]);
 
-        return $this->success($this->formatUser($user), 'Login successful');
+        return $this->success(
+            array_merge($this->formatUser($user), $this->sessionMeta($request)),
+            'Login successful'
+        );
     }
 
     /**
@@ -145,7 +155,81 @@ class AuthController extends ApiController
             return $this->error('Unauthenticated', [], 401);
         }
 
-        return $this->success($this->formatUser($user), 'User loaded');
+        return $this->success(
+            array_merge($this->formatUser($user), $this->sessionMeta($request)),
+            'User loaded'
+        );
+    }
+
+    /** Re-authenticate (password) to reset the absolute-timeout clock; session stays. */
+    public function reauth(Request $request): JsonResponse
+    {
+        $data = $request->validate(['password' => ['required', 'string']]);
+        $user = $request->user();
+
+        if (! $user || ! Hash::check($data['password'], $user->password)) {
+            return $this->error('Incorrect password', [], 422);
+        }
+
+        $this->stampSession($request); // resets auth_login_at (absolute clock)
+
+        return $this->success($this->sessionMeta($request), 'Session extended');
+    }
+
+    /** Active sessions (devices) for the current user. */
+    public function sessions(Request $request): JsonResponse
+    {
+        $currentId = $request->session()->getId();
+
+        $rows = DB::table('sessions')
+            ->where('user_id', $request->user()->id)
+            ->orderByDesc('last_activity')
+            ->get(['id', 'ip_address', 'user_agent', 'last_activity']);
+
+        $sessions = $rows->map(function ($s) use ($currentId) {
+            $device = DeviceParser::describe($s->user_agent);
+
+            return [
+                'id' => $s->id,
+                'device' => $device['label'],
+                'device_type' => $device['type'],
+                'ip_address' => $s->ip_address,
+                'last_active' => date(DATE_ATOM, (int) $s->last_activity),
+                'is_current' => $s->id === $currentId,
+            ];
+        })->values();
+
+        return $this->success($sessions, 'Sessions loaded');
+    }
+
+    /** Revoke one other device's session. */
+    public function revokeSession(Request $request, string $id): JsonResponse
+    {
+        if ($id === $request->session()->getId()) {
+            return $this->error('Use logout to end the current session', [], 422);
+        }
+
+        $deleted = DB::table('sessions')
+            ->where('id', $id)
+            ->where('user_id', $request->user()->id) // only your own sessions
+            ->delete();
+
+        if (! $deleted) {
+            return $this->error('Session not found', [], 404);
+        }
+
+        return $this->success(null, 'Device logged out');
+    }
+
+    /** Revoke every session except the current device. */
+    public function logoutOtherSessions(Request $request): JsonResponse
+    {
+        $count = DB::table('sessions')
+            ->where('user_id', $request->user()->id)
+            ->where('id', '!=', $request->session()->getId())
+            ->delete();
+
+        return $this->success(['revoked' => $count], 'Logged out of other devices');
     }
 
     /**
@@ -216,6 +300,26 @@ class AuthController extends ApiController
         $user->save();
 
         return $this->success(null, 'Password changed successfully');
+    }
+
+    /** Stamp the session's login + last-seen timestamps (idle/absolute clocks). */
+    private function stampSession(Request $request): void
+    {
+        $now = time();
+        $request->session()->put('auth_login_at', $now);
+        $request->session()->put('auth_last_seen', $now);
+    }
+
+    /** Session policy the SPA needs to drive its warning timers. */
+    private function sessionMeta(Request $request): array
+    {
+        $loginAt = (int) $request->session()->get('auth_login_at', time());
+        $absoluteMin = (int) config('session.absolute_timeout', 720);
+
+        return [
+            'idle_timeout_minutes' => (int) config('session.idle_timeout', 60),
+            'absolute_expires_at' => date(DATE_ATOM, $loginAt + $absoluteMin * 60),
+        ];
     }
 
     private function formatUser(User $user): array

@@ -37,6 +37,17 @@ return [
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
 
     /*
+    | Auth session policy (enforced by EnforceSessionTimeout middleware).
+    |  - idle_timeout: minutes of inactivity before logout (graceful warning in UI).
+    |  - absolute_timeout: hard cap on total session age regardless of activity;
+    |    the UI prompts for a password re-auth before this fires (so a stolen
+    |    cookie, lacking the password, can't survive past the cap).
+    | Code defaults that work out of the box; override via env if ever needed.
+    */
+    'idle_timeout' => (int) env('SESSION_IDLE_TIMEOUT', 60),
+    'absolute_timeout' => (int) env('SESSION_ABSOLUTE_TIMEOUT', 720),
+
+    /*
     |--------------------------------------------------------------------------
     | Session Encryption
     |--------------------------------------------------------------------------
